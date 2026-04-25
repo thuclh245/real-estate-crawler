@@ -19,7 +19,7 @@ def extract_listing_id(url: str) -> str | None:
     return None
 
 
-def extract_basic_fields(_detail_text: str, listing_url: str) -> dict:
+def extract_phase1_stub_fields(_detail_text: str, listing_url: str) -> dict:
     """Keep extraction minimal in Phase 1; deep parsing is deferred to Phase 3."""
     return {
         "listing_id": extract_listing_id(listing_url),

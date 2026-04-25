@@ -1,95 +1,155 @@
-## Cai dat (Windows PowerShell)
+# Real Estate Crawler
 
-Luu y: dung dung moi truong `.venv` (khong dung `.venv_mingw_backup`).
+This crawler collects real estate listings from batdongsan.com.vn and stores them in the Bronze layer to support a lakehouse pipeline.
+
+The current goal is Phase 1:
+
+```text
+Web source -> Crawler -> Bronze raw HTML/text/metadata/log
+```
+
+CSV is not the primary storage format in the current flow.
+
+## Setup
+
+Use Windows PowerShell and the `.venv` environment.
 
 ```powershell
-# 1) Tao virtual environment
 py -3.12 -m venv .venv
-
-# 2) Kich hoat venv
 .\.venv\Scripts\Activate.ps1
-
-# 3) Nang cap cong cu cai dat
 python -m pip install --upgrade pip setuptools wheel
-
-# 4) Cai dependencies
 python -m pip install -r requirements.txt
-
-# 5) Cai browser cho crawl4ai/playwright
 crawl4ai-setup
 ```
 
-## Kiem tra nhanh
+Quick check:
 
 ```powershell
 python -c "from crawl4ai import AsyncWebCrawler; print('OK')"
-python .\crawler.py --max-pages 3 --max-items 10
 ```
 
-## Settings (config + CLI)
+## Crawl Configuration
 
-Crawler doc settings tu `crawler_config.json`.
+The crawler reads configuration from:
 
-Vi du:
+```text
+configs/crawl_targets.yaml
+```
+
+The YAML file contains:
+
+```text
+source
+base_url
+crawl_settings
+targets
+```
+
+Important settings:
+
+```yaml
+crawl_settings:
+  fetch_mode: crawl4ai
+  max_pages_per_target: 1
+  max_listings_per_target: 5
+  request_delay_seconds: 5
+  concurrency: 1
+  save_images: false
+  stop_on_block: true
+  crawler_version: v0.1
+  parser_version: v0.1
+```
+
+Each target should include `business_type`, `category`, `property_type_group`, `city`, `district`, and `seed_url`.
+
+## Run the Crawler
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+python src\crawl.py
+```
+
+After a successful run, the terminal prints a `crawl_summary` with metrics such as:
+
+```text
+crawl_id
+total_listing_urls_found
+total_detail_pages_requested
+success_count
+failed_count
+blocked_count
+raw_html_file_count
+metadata_file_count
+crawl_success_rate
+```
+
+## Bronze Output
+
+The main data is stored under:
+
+```text
+data/bronze/source=batdongsan/crawl_date=YYYY-MM-DD/
+  raw_html/
+  raw_text/
+  raw_json/
+  metadata/
+  crawl_log/
+```
+
+Each successful listing has:
+
+```text
+raw_html/listing_id=<id>.html
+raw_text/listing_id=<id>.txt
+raw_json/listing_id=<id>.json
+metadata/listing_id=<id>.json
+```
+
+Logs and summary are written per crawl run:
+
+```text
+crawl_log/crawl_log_<crawl_id>.jsonl
+crawl_log/crawl_summary_<crawl_id>.json
+```
+
+## List Page Debugging
+
+List page debug files are stored separately by `crawl_id` to avoid overwriting previous runs:
+
+```text
+data/debug/list_pages/crawl_id=<crawl_id>/
+  ban-nha-rieng_cau-giay_p1.html
+  ban-nha-rieng_cau-giay_p1.json
+```
+
+The `.html` file is the raw snapshot of the page. If opened directly in a browser, it may break layout or show script errors because it depends on batdongsan.com.vn domain resources, cookies, assets, and JavaScript.
+
+Use the `.json` file to evaluate whether the crawl succeeded:
 
 ```json
 {
-  "start_url": "https://batdongsan.com.vn/nha-dat-ban-cau-giay",
-  "max_pages": 5,
-  "max_items": 50,
-  "page_delay_min": 1.0,
-  "page_delay_max": 2.0,
-  "detail_delay_min": 0.5,
-  "detail_delay_max": 1.5,
-  "save_every": 1
+  "http_status": 200,
+  "html_length": 614173,
+  "listing_urls_found": 30,
+  "is_blocked": false,
+  "error_message": null
 }
 ```
 
-Y nghia:
+If `http_status = 200`, `listing_urls_found > 0`, `is_blocked = false`, and `error_message = null`, then the list page crawl is considered healthy.
 
-- `start_url`: URL listing dau vao can crawl.
-- `max_pages`: so trang listing toi da.
-- `max_items`: so tin chi tiet toi da trong 1 lan chay.
-- `page_delay_min`, `page_delay_max`: do tre giua cac request listing page.
-- `detail_delay_min`, `detail_delay_max`: do tre giua cac request detail page.
-- `save_every`: ghi CSV moi N ban ghi thanh cong (1 = ghi ngay).
+## Operational Notes
 
-Thu tu uu tien gia tri:
+- Do not scale too quickly. Start with 5 listings per target, then 20 listings per target, then increase gradually.
+- Do not bypass CAPTCHA or use proxy rotation to evade anti-bot protection.
+- Images are not downloaded in the current version.
+- Raw HTML in Bronze is kept so it can be parsed again later.
+- The Phase 1 parser should stay minimal; the production parser belongs in the Silver/ETL phase.
 
-1. Tham so CLI (neu co)
-2. Gia tri trong `crawler_config.json`
-3. Fallback noi bo trong code
+## Design Docs
 
-Lenh hay dung:
+The guiding design documents are located in:
 
-```powershell
-# Chay theo config.json
-python .\crawler.py
-
-# Chay lon, co resume, ghi ngay tung ban ghi
-python .\crawler.py --resume --save-every 1
-
-# Override gioi han de test nhanh
-python .\crawler.py --resume --max-pages 2 --max-items 5  --save-every 1
-
-chinh xac chay luon
-python .\crawler.py --resume --max-pages 50 --max-items 1000 --save-every 20
-
+```text
+docs/real_estate_agent_docs/
 ```
-
-Luu y:
-
-- `--resume` se bo qua `listing_url` da co trong file output.
-- Khong dung `--resume` thi crawler se crawl lai cac URL cu.
-
-## Chay tren Google Colab
-
-Xem huong dan rieng tai `COLAB_GUIDE.md`.
-
-## Xu ly loi thuong gap
-
-```powershell
-python -c "import sys; print(sys.executable)"
-```
-
-Interpreter dung phai tro den duong dan co `.venv\Scripts\python.exe`.

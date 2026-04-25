@@ -2,12 +2,13 @@ from pathlib import Path
 import json
 import time
 import asyncio
+import sys
 from datetime import datetime
 import yaml
 import requests
 from urllib.parse import urljoin
 
-from parser import html_to_text, extract_basic_fields
+from parser import html_to_text, extract_phase1_stub_fields
 from storage import save_text_file, save_json_file, append_jsonl
 from url_builder import build_seed_url
 from utils import now_utc_iso, today_str
@@ -15,6 +16,11 @@ from utils import now_utc_iso, today_str
 
 CRAWLER_VERSION = "v0.1"
 PARSER_VERSION = "v0.1"
+
+
+for stream in (sys.stdout, sys.stderr):
+    if hasattr(stream, "reconfigure"):
+        stream.reconfigure(encoding="utf-8")
 
 
 def make_crawl_id(source_slug: str = "batdongsan") -> str:
@@ -54,6 +60,55 @@ def increment_http_counters(summary: dict, http_status: int | None):
         summary["http_403_count"] += 1
     elif http_status == 429:
         summary["http_429_count"] += 1
+
+
+def save_list_page_debug(
+    debug_list_root: Path,
+    crawl_id: str,
+    source: str,
+    target: dict,
+    page_url: str,
+    page_number: int,
+    fetch_mode: str,
+    http_status: int | None,
+    html: str,
+    listing_urls_found: int,
+    is_blocked: bool,
+    error_message: str | None = None,
+) -> tuple[Path, Path]:
+    category = target["category"]
+    district = target["district"]
+    debug_stem = f"{category}_{district}_p{page_number}"
+    debug_run_root = debug_list_root / f"crawl_id={crawl_id}"
+    debug_html_path = debug_run_root / f"{debug_stem}.html"
+    debug_metadata_path = debug_run_root / f"{debug_stem}.json"
+
+    save_text_file(debug_html_path, html)
+    save_json_file(debug_metadata_path, {
+        "crawl_id": crawl_id,
+        "source": source,
+        "page_url": page_url,
+        "page_number": page_number,
+        "fetch_mode": fetch_mode,
+        "http_status": http_status,
+        "html_length": len(html or ""),
+        "listing_urls_found": listing_urls_found,
+        "is_blocked": is_blocked,
+        "target_business_type": target.get("business_type"),
+        "target_category": category,
+        "target_category_label": target.get("category_label"),
+        "target_property_type_group": target.get("property_type_group"),
+        "target_city": target.get("city"),
+        "target_city_label": target.get("city_label"),
+        "target_district": district,
+        "target_district_label": target.get("district_label"),
+        "target_seed_url": target.get("seed_url"),
+        "saved_html_path": str(debug_html_path),
+        "error_message": error_message,
+        "saved_at": now_utc_iso(),
+    })
+    return debug_html_path, debug_metadata_path
+
 
 def load_config(config_path: str | Path) -> dict:
     with open(config_path, "r", encoding="utf-8") as f:
@@ -153,6 +208,8 @@ def run_crawl(config_path: str):
     delay = settings.get("request_delay_seconds", 2)
     fetch_mode = str(settings.get("fetch_mode", "requests"))
     stop_on_block = bool(settings.get("stop_on_block", True))
+    crawler_version = settings.get("crawler_version", CRAWLER_VERSION)
+    parser_version = settings.get("parser_version", PARSER_VERSION)
 
     bronze_root = Path("data") / "bronze" / f"source=batdongsan" / f"crawl_date={crawl_date}"
 
@@ -174,6 +231,8 @@ def run_crawl(config_path: str):
         "raw_html_file_count": 0,
         "metadata_file_count": 0,
         "avg_html_size": 0,
+        "crawler_version": crawler_version,
+        "parser_version": parser_version,
         "records": []
     }
 
@@ -188,7 +247,7 @@ def run_crawl(config_path: str):
         city = target["city"]
         district = target["district"]
 
-        target_listing_urls = []
+        target_listing_entries = []
         seed_url_override = target.get("seed_url")
 
         for page_number in range(1, max_pages + 1):
@@ -211,12 +270,26 @@ def run_crawl(config_path: str):
                 print(f"  HTML length: {html_length}")
                 print(f"  First 300 chars: {html_preview}")
 
-                debug_list_path = debug_list_root / f"{category}_{district}_p{page_number}.html"
-                save_text_file(debug_list_path, html)
                 time.sleep(delay)
 
                 if http_status != 200:
-                    if is_blocked_page(http_status, html):
+                    list_page_blocked = is_blocked_page(http_status, html)
+                    save_list_page_debug(
+                        debug_list_root=debug_list_root,
+                        crawl_id=crawl_id,
+                        source=source,
+                        target=target,
+                        page_url=page_url,
+                        page_number=page_number,
+                        fetch_mode=fetch_mode,
+                        http_status=http_status,
+                        html=html,
+                        listing_urls_found=0,
+                        is_blocked=list_page_blocked,
+                        error_message="Blocked by anti-bot protection" if list_page_blocked else f"HTTP {http_status}",
+                    )
+
+                    if list_page_blocked:
                         summary["blocked_count"] += 1
                         summary["failed_count"] += 1
                         summary["listing_page_failed_count"] += 1
@@ -263,7 +336,23 @@ def run_crawl(config_path: str):
                 listing_urls = extract_listing_urls_from_listing_page(html)
                 print(f"  Listing URLs found: {len(listing_urls)}")
 
-                if is_blocked_page(http_status, html, listing_urls_found=len(listing_urls)):
+                list_page_blocked = is_blocked_page(http_status, html, listing_urls_found=len(listing_urls))
+                save_list_page_debug(
+                    debug_list_root=debug_list_root,
+                    crawl_id=crawl_id,
+                    source=source,
+                    target=target,
+                    page_url=page_url,
+                    page_number=page_number,
+                    fetch_mode=fetch_mode,
+                    http_status=http_status,
+                    html=html,
+                    listing_urls_found=len(listing_urls),
+                    is_blocked=list_page_blocked,
+                    error_message="Blocked by anti-bot protection" if list_page_blocked else None,
+                )
+
+                if list_page_blocked:
                     summary["blocked_count"] += 1
                     summary["failed_count"] += 1
                     summary["listing_page_failed_count"] += 1
@@ -298,11 +387,30 @@ def run_crawl(config_path: str):
                     for idx, href in enumerate(sample_hrefs):
                         print(f"    {idx}: {href}")
 
-                target_listing_urls.extend(listing_urls)
+                target_listing_entries.extend({
+                    "listing_url": listing_url,
+                    "page_url": page_url,
+                    "page_number": page_number,
+                    "crawl_seed_url": seed_url_override or build_seed_url(base_url, category, district, 1),
+                } for listing_url in listing_urls)
 
             except Exception as e:
                 summary["failed_count"] += 1
                 summary["listing_page_failed_count"] += 1
+                save_list_page_debug(
+                    debug_list_root=debug_list_root,
+                    crawl_id=crawl_id,
+                    source=source,
+                    target=target,
+                    page_url=page_url,
+                    page_number=page_number,
+                    fetch_mode=fetch_mode,
+                    http_status=None,
+                    html="",
+                    listing_urls_found=0,
+                    is_blocked=False,
+                    error_message=str(e),
+                )
 
                 append_jsonl(crawl_log_path, {
                     "crawl_id": crawl_id,
@@ -315,11 +423,15 @@ def run_crawl(config_path: str):
                     "scraped_at": now_utc_iso()
                 })
 
-        # Dedup URL trong target
-        target_listing_urls = list(dict.fromkeys(target_listing_urls))[:max_listings]
-        summary["total_listing_urls_found"] += len(target_listing_urls)
+        # Dedup URL trong target, preserving the first page context where it appeared.
+        deduped_entries_by_url = {}
+        for entry in target_listing_entries:
+            deduped_entries_by_url.setdefault(entry["listing_url"], entry)
+        target_listing_entries = list(deduped_entries_by_url.values())[:max_listings]
+        summary["total_listing_urls_found"] += len(target_listing_entries)
 
-        for listing_url in target_listing_urls:
+        for listing_entry in target_listing_entries:
+            listing_url = listing_entry["listing_url"]
             summary["total_detail_pages_requested"] += 1
             requested_detail_urls.append(listing_url)
 
@@ -339,12 +451,16 @@ def run_crawl(config_path: str):
                         "fetch_mode": fetch_mode,
                         "http_status": http_status,
                         "error_message": f"HTTP {http_status}",
-                        "scraped_at": scraped_at
+                        "scraped_at": scraped_at,
+                        "crawl_seed_url": listing_entry["crawl_seed_url"],
+                        "page_url": listing_entry["page_url"],
+                        "page_number": listing_entry["page_number"],
+                        "retry_count": 0,
                     })
                     continue
 
                 detail_text = html_to_text(detail_html)
-                basic_fields = extract_basic_fields(detail_text, listing_url)
+                basic_fields = extract_phase1_stub_fields(detail_text, listing_url)
 
                 listing_id = basic_fields.get("listing_id") or str(abs(hash(listing_url)))
 
@@ -375,9 +491,13 @@ def run_crawl(config_path: str):
                     "crawl_city_label": target.get("city_label"),
                     "crawl_district": district,
                     "crawl_district_label": target.get("district_label"),
-                    "page_number": None,
-                    "parser_version": PARSER_VERSION,
-                    "crawler_version": CRAWLER_VERSION
+                    "crawl_seed_url": listing_entry["crawl_seed_url"],
+                    "page_url": listing_entry["page_url"],
+                    "page_number": listing_entry["page_number"],
+                    "parser_version": parser_version,
+                    "crawler_version": crawler_version,
+                    "error_message": None,
+                    "retry_count": 0,
                 }
 
                 extracted_json = {
@@ -397,7 +517,6 @@ def run_crawl(config_path: str):
                 append_jsonl(crawl_log_path, {
                     **metadata,
                     "type": "detail_page",
-                    "error_message": None
                 })
 
             except Exception as e:
@@ -413,7 +532,11 @@ def run_crawl(config_path: str):
                     "scraped_at": scraped_at,
                     "crawl_category": category,
                     "crawl_city": city,
-                    "crawl_district": district
+                    "crawl_district": district,
+                    "crawl_seed_url": listing_entry["crawl_seed_url"],
+                    "page_url": listing_entry["page_url"],
+                    "page_number": listing_entry["page_number"],
+                    "retry_count": 0,
                 })
 
     summary["finished_at"] = now_utc_iso()
