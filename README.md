@@ -51,11 +51,13 @@ Important settings:
 crawl_settings:
   fetch_mode: crawl4ai
   max_pages_per_target: 1
-  max_listings_per_target: 5
+  max_listings_per_target: 10
   request_delay_seconds: 5
   concurrency: 1
   save_images: false
   stop_on_block: true
+  max_retries: 1
+  retry_delay_seconds: 10
   crawler_version: v0.1
   parser_version: v0.1
 ```
@@ -67,6 +69,21 @@ Each target should include `business_type`, `category`, `property_type_group`, `
 ```powershell
 .\.venv\Scripts\Activate.ps1
 python src\crawl.py
+```
+
+Run with a specific config:
+
+```powershell
+python src\crawl.py --config configs\crawl_targets.yaml
+python src\crawl.py --config configs\crawl_targets_scale.yaml
+```
+
+`configs/crawl_targets.yaml` is for smaller tests. `configs/crawl_targets_scale.yaml` is for a moderate scale batch:
+
+```text
+max_pages_per_target = 2
+max_listings_per_target = 20
+3 targets x 20 = up to 60 listings/run
 ```
 
 After a successful run, the terminal prints a `crawl_summary` with metrics such as:
@@ -89,11 +106,12 @@ The main data is stored under:
 
 ```text
 data/bronze/source=batdongsan/crawl_date=YYYY-MM-DD/
-  raw_html/
-  raw_text/
-  raw_json/
-  metadata/
-  crawl_log/
+  crawl_id=<crawl_id>/
+    raw_html/
+    raw_text/
+    raw_json/
+    metadata/
+    crawl_log/
 ```
 
 Each successful listing has:
@@ -110,6 +128,35 @@ Logs and summary are written per crawl run:
 ```text
 crawl_log/crawl_log_<crawl_id>.jsonl
 crawl_log/crawl_summary_<crawl_id>.json
+```
+
+The `crawl_id` partition prevents raw HTML and metadata from being overwritten when multiple batches run on the same day.
+
+## Audit After Crawl
+
+After each run, the crawler prints the `crawl_id` and an audit command. Run:
+
+```powershell
+python scripts\audit_bronze.py --crawl-id <crawl_id>
+```
+
+Go if:
+
+```text
+crawl_success_rate >= 0.8
+blocked_count = 0 or low
+raw_html_file_count = success_count
+metadata_file_count = success_count
+avg_html_size is reasonable
+```
+
+No-go if:
+
+```text
+blocked_count increases
+HTML size is very small
+success_count drops sharply
+metadata is missing
 ```
 
 ## List Page Debugging
@@ -141,6 +188,7 @@ If `http_status = 200`, `listing_urls_found > 0`, `is_blocked = false`, and `err
 ## Operational Notes
 
 - Do not scale too quickly. Start with 5 listings per target, then 20 listings per target, then increase gradually.
+- To reach 100-300 listings/day, prefer 2-5 small batches with the scale config instead of one very large batch.
 - Do not bypass CAPTCHA or use proxy rotation to evade anti-bot protection.
 - Images are not downloaded in the current version.
 - Raw HTML in Bronze is kept so it can be parsed again later.

@@ -1,4 +1,5 @@
 from pathlib import Path
+import argparse
 import json
 import time
 import asyncio
@@ -60,6 +61,51 @@ def increment_http_counters(summary: dict, http_status: int | None):
         summary["http_403_count"] += 1
     elif http_status == 429:
         summary["http_429_count"] += 1
+
+
+def is_retryable_http_status(http_status: int | None) -> bool:
+    return http_status in {408, 500, 502, 503, 504}
+
+
+def classify_failure_status(http_status: int | None, error_message: str | None = None) -> str:
+    error_lower = (error_message or "").lower()
+    if http_status in {403, 429}:
+        return "blocked"
+    if http_status is not None:
+        return "failed_http"
+    if "timeout" in error_lower or "timed out" in error_lower:
+        return "failed_timeout"
+    return "failed_fetch"
+
+
+def fetch_with_retry(
+    url: str,
+    mode: str,
+    max_retries: int,
+    retry_delay_seconds: float,
+) -> tuple[int | None, str, int, str | None]:
+    last_status = None
+    last_html = ""
+    last_error = None
+
+    for attempt in range(max_retries + 1):
+        try:
+            status, html = fetch_html(url, mode=mode)
+            if is_retryable_http_status(status) and attempt < max_retries:
+                last_status = status
+                last_html = html or ""
+                last_error = f"HTTP {status}"
+                time.sleep(retry_delay_seconds)
+                continue
+            return status, html or "", attempt, None
+        except Exception as exc:
+            last_error = str(exc)
+            if attempt < max_retries:
+                time.sleep(retry_delay_seconds)
+                continue
+            return last_status, last_html, attempt, last_error
+
+    return last_status, last_html, max_retries, last_error
 
 
 def save_list_page_debug(
@@ -210,8 +256,16 @@ def run_crawl(config_path: str):
     stop_on_block = bool(settings.get("stop_on_block", True))
     crawler_version = settings.get("crawler_version", CRAWLER_VERSION)
     parser_version = settings.get("parser_version", PARSER_VERSION)
+    max_retries = int(settings.get("max_retries", 1))
+    retry_delay_seconds = float(settings.get("retry_delay_seconds", 10))
 
-    bronze_root = Path("data") / "bronze" / f"source=batdongsan" / f"crawl_date={crawl_date}"
+    bronze_root = (
+        Path("data")
+        / "bronze"
+        / f"source=batdongsan"
+        / f"crawl_date={crawl_date}"
+        / f"crawl_id={crawl_id}"
+    )
 
     summary = {
         "crawl_id": crawl_id,
@@ -233,6 +287,9 @@ def run_crawl(config_path: str):
         "avg_html_size": 0,
         "crawler_version": crawler_version,
         "parser_version": parser_version,
+        "bronze_layout": "crawl_id_partitioned",
+        "max_retries": max_retries,
+        "retry_delay_seconds": retry_delay_seconds,
         "records": []
     }
 
@@ -262,7 +319,15 @@ def run_crawl(config_path: str):
             print(f"  Fetch mode: {fetch_mode}")
 
             try:
-                http_status, html = fetch_html(page_url, mode=fetch_mode)
+                http_status, html, retry_count, fetch_error = fetch_with_retry(
+                    page_url,
+                    mode=fetch_mode,
+                    max_retries=max_retries,
+                    retry_delay_seconds=retry_delay_seconds,
+                )
+                if fetch_error:
+                    raise RuntimeError(fetch_error)
+
                 html_length = len(html or "")
                 html_preview = (html or "")[:300]
 
@@ -305,6 +370,7 @@ def run_crawl(config_path: str):
                             "html_length": html_length,
                             "html_preview": html_preview,
                             "error_message": "Blocked by anti-bot protection",
+                            "retry_count": retry_count,
                             "scraped_at": now_utc_iso()
                         })
 
@@ -323,12 +389,13 @@ def run_crawl(config_path: str):
                         "crawl_id": crawl_id,
                         "type": "listing_page",
                         "url": page_url,
-                        "crawl_status": "failed",
+                        "crawl_status": "failed_http",
                         "fetch_mode": fetch_mode,
                         "http_status": http_status,
                         "html_length": html_length,
                         "html_preview": html_preview,
                         "error_message": f"HTTP {http_status}",
+                        "retry_count": retry_count,
                         "scraped_at": now_utc_iso()
                     })
                     continue
@@ -368,6 +435,7 @@ def run_crawl(config_path: str):
                         "html_length": html_length,
                         "html_preview": html_preview,
                         "error_message": "Blocked by anti-bot protection",
+                        "retry_count": retry_count,
                         "scraped_at": now_utc_iso()
                     })
 
@@ -416,10 +484,11 @@ def run_crawl(config_path: str):
                     "crawl_id": crawl_id,
                     "type": "listing_page",
                     "url": page_url,
-                    "crawl_status": "failed",
+                    "crawl_status": classify_failure_status(None, str(e)),
                     "fetch_mode": fetch_mode,
                     "http_status": None,
                     "error_message": str(e),
+                    "retry_count": max_retries,
                     "scraped_at": now_utc_iso()
                 })
 
@@ -438,16 +507,28 @@ def run_crawl(config_path: str):
             scraped_at = now_utc_iso()
 
             try:
-                http_status, detail_html = fetch_html(listing_url, mode=fetch_mode)
+                http_status, detail_html, retry_count, fetch_error = fetch_with_retry(
+                    listing_url,
+                    mode=fetch_mode,
+                    max_retries=max_retries,
+                    retry_delay_seconds=retry_delay_seconds,
+                )
                 time.sleep(delay)
 
+                if fetch_error:
+                    raise RuntimeError(fetch_error)
+
                 if http_status != 200:
+                    crawl_status = classify_failure_status(http_status)
                     summary["failed_count"] += 1
+                    if crawl_status == "blocked":
+                        summary["blocked_count"] += 1
+                    increment_http_counters(summary, http_status)
                     append_jsonl(crawl_log_path, {
                         "crawl_id": crawl_id,
                         "type": "detail_page",
                         "listing_url": listing_url,
-                        "crawl_status": "failed",
+                        "crawl_status": crawl_status,
                         "fetch_mode": fetch_mode,
                         "http_status": http_status,
                         "error_message": f"HTTP {http_status}",
@@ -455,7 +536,7 @@ def run_crawl(config_path: str):
                         "crawl_seed_url": listing_entry["crawl_seed_url"],
                         "page_url": listing_entry["page_url"],
                         "page_number": listing_entry["page_number"],
-                        "retry_count": 0,
+                        "retry_count": retry_count,
                     })
                     continue
 
@@ -497,7 +578,7 @@ def run_crawl(config_path: str):
                     "parser_version": parser_version,
                     "crawler_version": crawler_version,
                     "error_message": None,
-                    "retry_count": 0,
+                    "retry_count": retry_count,
                 }
 
                 extracted_json = {
@@ -520,12 +601,13 @@ def run_crawl(config_path: str):
                 })
 
             except Exception as e:
+                crawl_status = classify_failure_status(None, str(e))
                 summary["failed_count"] += 1
                 append_jsonl(crawl_log_path, {
                     "crawl_id": crawl_id,
                     "type": "detail_page",
                     "listing_url": listing_url,
-                    "crawl_status": "failed",
+                    "crawl_status": crawl_status,
                     "fetch_mode": fetch_mode,
                     "http_status": None,
                     "error_message": str(e),
@@ -536,7 +618,7 @@ def run_crawl(config_path: str):
                     "crawl_seed_url": listing_entry["crawl_seed_url"],
                     "page_url": listing_entry["page_url"],
                     "page_number": listing_entry["page_number"],
-                    "retry_count": 0,
+                    "retry_count": max_retries,
                 })
 
     summary["finished_at"] = now_utc_iso()
@@ -570,8 +652,16 @@ def run_crawl(config_path: str):
 
     print("Crawl finished.")
     print(json.dumps(summary, ensure_ascii=False, indent=2))
+    print(f"Audit command: python scripts\\audit_bronze.py --crawl-id {crawl_id}")
 
 if __name__ == "__main__":
-    run_crawl("configs/crawl_targets.yaml")
+    parser = argparse.ArgumentParser(description="Run Batdongsan Bronze crawler.")
+    parser.add_argument(
+        "--config",
+        default="configs/crawl_targets.yaml",
+        help="Path to crawl target YAML config.",
+    )
+    args = parser.parse_args()
+    run_crawl(args.config)
 
 

@@ -24,13 +24,17 @@ def find_summary(crawl_date: str | None, crawl_id: str | None) -> Path:
     date_dirs = [BRONZE_ROOT / f"crawl_date={crawl_date}"] if crawl_date else sorted(BRONZE_ROOT.glob("crawl_date=*"))
     candidates = []
     for date_dir in date_dirs:
-        crawl_log_dir = date_dir / "crawl_log"
         if crawl_id:
-            path = crawl_log_dir / f"crawl_summary_{crawl_id}.json"
-            if path.exists():
-                return path
+            paths = [
+                date_dir / f"crawl_id={crawl_id}" / "crawl_log" / f"crawl_summary_{crawl_id}.json",
+                date_dir / "crawl_log" / f"crawl_summary_{crawl_id}.json",
+            ]
+            for path in paths:
+                if path.exists():
+                    return path
             continue
-        candidates.extend(crawl_log_dir.glob("crawl_summary_*.json"))
+        candidates.extend(date_dir.glob("crawl_id=*/crawl_log/crawl_summary_*.json"))
+        candidates.extend((date_dir / "crawl_log").glob("crawl_summary_*.json"))
 
     if not candidates:
         target = f"crawl_id={crawl_id}" if crawl_id else "latest crawl summary"

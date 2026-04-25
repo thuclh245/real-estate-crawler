@@ -3,8 +3,8 @@ base_url: https://batdongsan.com.vn
 
 crawl_settings:
   fetch_mode: crawl4ai
-  max_pages_per_target: 1
-  max_listings_per_target: 10
+  max_pages_per_target: 2
+  max_listings_per_target: 20
   request_delay_seconds: 5
   concurrency: 1
   save_images: false
