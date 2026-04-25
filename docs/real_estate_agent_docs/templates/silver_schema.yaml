@@ -1,0 +1,71 @@
+silver_listing_snapshot:
+  crawl_metadata:
+    - crawl_id
+    - source
+    - crawl_date
+    - snapshot_date
+    - scraped_at
+    - parser_version
+    - listing_id
+    - listing_url
+    - crawl_category
+    - crawl_city
+    - crawl_district
+    - property_type_group
+  listing_content:
+    - title
+    - description
+    - content_hash
+    - image_count
+    - has_image
+    - image_urls_raw
+  location:
+    - province
+    - city
+    - district
+    - ward_old
+    - ward_new
+    - street
+    - project_name
+    - full_address
+    - breadcrumb
+    - location_level
+    - location_parse_method
+    - location_confidence
+    - missing_location_flag
+  price:
+    - price_raw
+    - price_value_vnd
+    - price_type
+    - currency
+    - unit_price_raw
+    - unit_price_vnd_m2
+    - market_min_unit_price_vnd_m2
+    - market_common_unit_price_vnd_m2
+    - market_max_unit_price_vnd_m2
+    - price_confidence
+    - missing_price_flag
+    - ambiguous_price_flag
+  property_features:
+    - area_raw
+    - area_m2
+    - bedrooms
+    - bathrooms
+    - toilets
+    - floors
+    - frontage_m
+    - entrance_width_m
+    - house_direction
+    - balcony_direction
+    - legal_status
+    - furniture_status
+    - amenities
+  quality:
+    - is_valid_record
+    - is_valid_for_count_analysis
+    - is_valid_for_price_analysis
+    - is_valid_for_unit_price_analysis
+    - is_valid_for_ml
+    - duplicate_flag
+    - quality_score
+    - quality_errors

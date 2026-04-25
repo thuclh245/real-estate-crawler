@@ -1,0 +1,9 @@
+gold_tables:
+  - name: gold_listing_current
+    grain: one row per latest listing
+  - name: gold_listing_snapshot_fact
+    grain: one row per listing per snapshot_date
+  - name: gold_market_district_daily
+    grain: one row per snapshot_date + district + property_type
+  - name: gold_data_quality_daily
+    grain: one row per crawl_date + source/category/location
