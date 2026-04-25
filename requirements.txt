@@ -1,2 +1,20 @@
 crawl4ai==0.8.6
 pandas==3.0.2
+
+# Gửi HTTP requests (GET/POST/headers/cookies), dùng để crawl dữ liệu web
+requests==2.33.1
+
+# Parse & trích xuất dữ liệu HTML/XML (find, select, css selector)
+beautifulsoup4==4.14.3
+
+# Parser HTML/XML tốc độ cao, backend cho BeautifulSoup & XPath
+lxml==5.4.0
+
+# Đọc/ghi file cấu hình YAML (config crawler, setting, mapping rule)
+PyYAML==6.0.3
+
+# Xử lý dữ liệu dạng bảng (DataFrame), làm sạch & xuất CSV/Excel
+pandas==3.0.2
+
+# Xử lý ngày giờ nâng cao (parse, timezone, timedelta)
+python-dateutil==2.9.0.post0

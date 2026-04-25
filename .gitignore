@@ -1,3 +1,9 @@
 .venv
 .venv_mingw_backup
 __pycache__
+data/bronze/source=batdongsan/crawl_date=2026-04-25/crawl_log/*
+data/bronze/source=batdongsan/crawl_date=2026-04-25/metadata/*
+data/bronze/source=batdongsan/crawl_date=2026-04-25/raw_html/*
+data/debug/list_pages/*
+
+output/*

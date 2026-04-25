@@ -1,0 +1,39 @@
+source: batdongsan.com.vn
+base_url: https://batdongsan.com.vn
+
+crawl_settings:
+  max_pages_per_target: 2
+  max_listings_per_target: 50
+  request_delay_seconds: 2
+  concurrency: 2
+  save_images: false
+  crawler_version: v0.1
+  parser_version: v0.1
+
+targets:
+  - business_type: sale
+    category: ban-nha-rieng
+    category_label: Bán nhà riêng
+    property_type_group: private_house
+    city: ha-noi
+    city_label: Hà Nội
+    district: cau-giay
+    district_label: Cầu Giấy
+
+  - business_type: sale
+    category: ban-can-ho-chung-cu
+    category_label: Bán căn hộ chung cư
+    property_type_group: apartment
+    city: ha-noi
+    city_label: Hà Nội
+    district: thanh-xuan
+    district_label: Thanh Xuân
+
+  - business_type: sale
+    category: ban-dat
+    category_label: Bán đất
+    property_type_group: land
+    city: ha-noi
+    city_label: Hà Nội
+    district: ha-dong
+    district_label: Hà Đông
