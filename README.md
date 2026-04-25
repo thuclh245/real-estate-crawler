@@ -34,14 +34,14 @@ Vi du:
 
 ```json
 {
-	"start_url": "https://batdongsan.com.vn/nha-dat-ban-cau-giay",
-	"max_pages": 5,
-	"max_items": 50,
-	"page_delay_min": 1.0,
-	"page_delay_max": 2.0,
-	"detail_delay_min": 0.5,
-	"detail_delay_max": 1.5,
-	"save_every": 1
+  "start_url": "https://batdongsan.com.vn/nha-dat-ban-cau-giay",
+  "max_pages": 5,
+  "max_items": 50,
+  "page_delay_min": 1.0,
+  "page_delay_max": 2.0,
+  "detail_delay_min": 0.5,
+  "detail_delay_max": 1.5,
+  "save_every": 1
 }
 ```
 
@@ -70,13 +70,21 @@ python .\crawler.py
 python .\crawler.py --resume --save-every 1
 
 # Override gioi han de test nhanh
-python .\crawler.py --resume --max-pages 2 --max-items 5 --save-every 1
+python .\crawler.py --resume --max-pages 2 --max-items 5  --save-every 1
+
+chinh xac chay luon
+python .\crawler.py --resume --max-pages 50 --max-items 1000 --save-every 20
+
 ```
 
 Luu y:
 
 - `--resume` se bo qua `listing_url` da co trong file output.
 - Khong dung `--resume` thi crawler se crawl lai cac URL cu.
+
+## Chay tren Google Colab
+
+Xem huong dan rieng tai `COLAB_GUIDE.md`.
 
 ## Xu ly loi thuong gap
 
