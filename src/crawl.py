@@ -1,14 +1,31 @@
-from pathlib import Path
+﻿from pathlib import Path
 import argparse
 import json
+import re
 import time
-import asyncio
 import sys
 from datetime import datetime
-import yaml
-import requests
 from urllib.parse import urljoin
 
+from crawl_audit import (
+    classify_category_match,
+    classify_location_match,
+    extract_detail_location_raw,
+    print_error,
+    print_warning,
+    safe_rate,
+    validate_seed_url,
+    write_audit_sample_csv,
+)
+from crawl_config import (
+    expand_targets,
+    get_target_city,
+    get_target_location_label,
+    get_target_location_path,
+    get_target_location_slug,
+    load_config,
+)
+from fetcher import fetch_with_retry
 from parser import html_to_text, extract_phase1_stub_fields
 from storage import save_text_file, save_json_file, append_jsonl
 from url_builder import build_seed_url
@@ -63,10 +80,6 @@ def increment_http_counters(summary: dict, http_status: int | None):
         summary["http_429_count"] += 1
 
 
-def is_retryable_http_status(http_status: int | None) -> bool:
-    return http_status in {408, 500, 502, 503, 504}
-
-
 def classify_failure_status(http_status: int | None, error_message: str | None = None) -> str:
     error_lower = (error_message or "").lower()
     if http_status in {403, 429}:
@@ -78,36 +91,6 @@ def classify_failure_status(http_status: int | None, error_message: str | None =
     return "failed_fetch"
 
 
-def fetch_with_retry(
-    url: str,
-    mode: str,
-    max_retries: int,
-    retry_delay_seconds: float,
-) -> tuple[int | None, str, int, str | None]:
-    last_status = None
-    last_html = ""
-    last_error = None
-
-    for attempt in range(max_retries + 1):
-        try:
-            status, html = fetch_html(url, mode=mode)
-            if is_retryable_http_status(status) and attempt < max_retries:
-                last_status = status
-                last_html = html or ""
-                last_error = f"HTTP {status}"
-                time.sleep(retry_delay_seconds)
-                continue
-            return status, html or "", attempt, None
-        except Exception as exc:
-            last_error = str(exc)
-            if attempt < max_retries:
-                time.sleep(retry_delay_seconds)
-                continue
-            return last_status, last_html, attempt, last_error
-
-    return last_status, last_html, max_retries, last_error
-
-
 def save_list_page_debug(
     debug_list_root: Path,
     crawl_id: str,
@@ -117,14 +100,16 @@ def save_list_page_debug(
     page_number: int,
     fetch_mode: str,
     http_status: int | None,
+    final_url: str | None,
+    is_seed_url_valid: bool | None,
     html: str,
     listing_urls_found: int,
     is_blocked: bool,
     error_message: str | None = None,
 ) -> tuple[Path, Path]:
     category = target["category"]
-    district = target["district"]
-    debug_stem = f"{category}_{district}_p{page_number}"
+    location_slug = target.get("location_slug") or target.get("district")
+    debug_stem = f"{category}_{location_slug}_p{page_number}"
     debug_run_root = debug_list_root / f"crawl_id={crawl_id}"
     debug_html_path = debug_run_root / f"{debug_stem}.html"
     debug_metadata_path = debug_run_root / f"{debug_stem}.json"
@@ -137,6 +122,8 @@ def save_list_page_debug(
         "page_number": page_number,
         "fetch_mode": fetch_mode,
         "http_status": http_status,
+        "final_url": final_url,
+        "is_seed_url_valid": is_seed_url_valid,
         "html_length": len(html or ""),
         "listing_urls_found": listing_urls_found,
         "is_blocked": is_blocked,
@@ -146,7 +133,13 @@ def save_list_page_debug(
         "target_property_type_group": target.get("property_type_group"),
         "target_city": target.get("city"),
         "target_city_label": target.get("city_label"),
-        "target_district": district,
+        "target_city_slug": target.get("city_slug"),
+        "target_location_slug": target.get("location_slug"),
+        "target_location_path": target.get("location_path"),
+        "target_location_label": target.get("location_label"),
+        "target_location_level": target.get("location_level"),
+        "target_priority_group": target.get("priority_group"),
+        "target_district": target.get("district"),
         "target_district_label": target.get("district_label"),
         "target_seed_url": target.get("seed_url"),
         "saved_html_path": str(debug_html_path),
@@ -155,59 +148,6 @@ def save_list_page_debug(
     })
     return debug_html_path, debug_metadata_path
 
-
-def load_config(config_path: str | Path) -> dict:
-    with open(config_path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f)
-
-
-def fetch_html_requests(url: str) -> tuple[int, str]:
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-        "Accept-Language": "vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7",
-        "Connection": "keep-alive",
-        "Upgrade-Insecure-Requests": "1",
-    }
-    response = requests.get(url, headers=headers, timeout=30, allow_redirects=True)
-    return response.status_code, response.text
-
-
-async def fetch_html_crawl4ai_async(url: str) -> tuple[int, str]:
-    try:
-        from crawl4ai import AsyncWebCrawler
-    except ImportError as exc:
-        raise RuntimeError("crawl4ai is not installed in current environment") from exc
-
-    async with AsyncWebCrawler() as crawler:
-        result = await crawler.arun(url=url)
-
-    html = (
-        getattr(result, "html", None)
-        or getattr(result, "cleaned_html", None)
-        or getattr(result, "markdown", None)
-        or ""
-    )
-    status_code = getattr(result, "status_code", None)
-    if status_code is None:
-        status_code = 200 if html else 0
-
-    return int(status_code), html
-
-
-def fetch_html_crawl4ai(url: str) -> tuple[int, str]:
-    return asyncio.run(fetch_html_crawl4ai_async(url))
-
-
-def fetch_html(url: str, mode: str = "requests") -> tuple[int, str]:
-    mode = (mode or "requests").lower().strip()
-
-    if mode == "requests":
-        return fetch_html_requests(url)
-    if mode == "crawl4ai":
-        return fetch_html_crawl4ai(url)
-
-    raise ValueError(f"Unsupported fetch mode: {mode}")
 
 def extract_listing_urls_from_listing_page(html: str) -> list[str]:
     from bs4 import BeautifulSoup
@@ -298,20 +238,34 @@ def run_crawl(config_path: str):
     requested_detail_urls: list[str] = []
     written_raw_html_paths: list[Path] = []
     written_metadata_paths: list[Path] = []
+    seed_url_audits: list[dict] = []
+    detail_audits: list[dict] = []
+    audit_samples: list[dict] = []
+    expanded_targets = expand_targets(config)
+    known_location_labels = sorted({
+        label
+        for label in (get_target_location_label(target) for target in expanded_targets)
+        if label
+    })
 
-    for target in config["targets"]:
+    for target in expanded_targets:
         category = target["category"]
-        city = target["city"]
-        district = target["district"]
+        city = get_target_city(target)
+        location_path = get_target_location_path(target)
+        location_slug = get_target_location_slug(target)
+        location_label = get_target_location_label(target)
 
         target_listing_entries = []
         seed_url_override = target.get("seed_url")
+        current_seed_url = seed_url_override or build_seed_url(base_url, category, location_path, 1)
+        current_final_seed_url = None
+        current_is_seed_url_valid = None
 
         for page_number in range(1, max_pages + 1):
             if seed_url_override:
                 page_url = seed_url_override if page_number == 1 else f"{seed_url_override}/p{page_number}"
             else:
-                page_url = build_seed_url(base_url, category, district, page_number)
+                page_url = build_seed_url(base_url, category, location_path, page_number)
 
             summary["total_listing_pages_requested"] += 1
 
@@ -319,7 +273,7 @@ def run_crawl(config_path: str):
             print(f"  Fetch mode: {fetch_mode}")
 
             try:
-                http_status, html, retry_count, fetch_error = fetch_with_retry(
+                http_status, html, final_url, retry_count, fetch_error = fetch_with_retry(
                     page_url,
                     mode=fetch_mode,
                     max_retries=max_retries,
@@ -332,8 +286,64 @@ def run_crawl(config_path: str):
                 html_preview = (html or "")[:300]
 
                 print(f"  HTTP status: {http_status}")
+                print(f"  Final URL: {final_url}")
                 print(f"  HTML length: {html_length}")
                 print(f"  First 300 chars: {html_preview}")
+
+                is_seed_url_valid = validate_seed_url(page_url, final_url or "", location_path)
+                if page_number == 1:
+                    current_final_seed_url = final_url
+                    current_is_seed_url_valid = is_seed_url_valid
+                    seed_url_audits.append({
+                        "seed_url": page_url,
+                        "final_url": final_url,
+                        "target_location_path": location_path,
+                        "target_location_label": location_label,
+                        "target_category": category,
+                        "http_status": http_status,
+                        "is_seed_url_valid": is_seed_url_valid,
+                    })
+
+                if not is_seed_url_valid:
+                    summary["failed_count"] += 1
+                    summary["listing_page_failed_count"] += 1
+                    error_message = f"Invalid seed URL redirect: seed={page_url}, final={final_url}"
+                    print_error(f"  ERROR: {error_message}")
+                    save_list_page_debug(
+                        debug_list_root=debug_list_root,
+                        crawl_id=crawl_id,
+                        source=source,
+                        target=target,
+                        page_url=page_url,
+                        page_number=page_number,
+                        fetch_mode=fetch_mode,
+                        http_status=http_status,
+                        final_url=final_url,
+                        is_seed_url_valid=False,
+                        html=html,
+                        listing_urls_found=0,
+                        is_blocked=False,
+                        error_message=error_message,
+                    )
+                    append_jsonl(crawl_log_path, {
+                        "crawl_id": crawl_id,
+                        "type": "listing_page",
+                        "url": page_url,
+                        "final_url": final_url,
+                        "crawl_status": "invalid_seed_url",
+                        "fetch_mode": fetch_mode,
+                        "http_status": http_status,
+                        "html_length": html_length,
+                        "html_preview": html_preview,
+                        "target_location_path": location_path,
+                        "target_location_label": location_label,
+                        "target_category": category,
+                        "is_seed_url_valid": False,
+                        "error_message": error_message,
+                        "retry_count": retry_count,
+                        "scraped_at": now_utc_iso()
+                    })
+                    break
 
                 time.sleep(delay)
 
@@ -348,6 +358,8 @@ def run_crawl(config_path: str):
                         page_number=page_number,
                         fetch_mode=fetch_mode,
                         http_status=http_status,
+                        final_url=final_url,
+                        is_seed_url_valid=is_seed_url_valid,
                         html=html,
                         listing_urls_found=0,
                         is_blocked=list_page_blocked,
@@ -364,6 +376,7 @@ def run_crawl(config_path: str):
                             "crawl_id": crawl_id,
                             "type": "listing_page",
                             "url": page_url,
+                            "final_url": final_url,
                             "crawl_status": "blocked",
                             "fetch_mode": fetch_mode,
                             "http_status": http_status,
@@ -371,10 +384,11 @@ def run_crawl(config_path: str):
                             "html_preview": html_preview,
                             "error_message": "Blocked by anti-bot protection",
                             "retry_count": retry_count,
+                            "is_seed_url_valid": is_seed_url_valid,
                             "scraped_at": now_utc_iso()
                         })
 
-                        print("  BLOCKED: anti-bot page detected.")
+                        print_error("  BLOCKED: anti-bot page detected.")
                         if stop_on_block:
                             print("  stop_on_block=true -> Stop this target.")
                             break
@@ -389,6 +403,7 @@ def run_crawl(config_path: str):
                         "crawl_id": crawl_id,
                         "type": "listing_page",
                         "url": page_url,
+                        "final_url": final_url,
                         "crawl_status": "failed_http",
                         "fetch_mode": fetch_mode,
                         "http_status": http_status,
@@ -396,6 +411,7 @@ def run_crawl(config_path: str):
                         "html_preview": html_preview,
                         "error_message": f"HTTP {http_status}",
                         "retry_count": retry_count,
+                        "is_seed_url_valid": is_seed_url_valid,
                         "scraped_at": now_utc_iso()
                     })
                     continue
@@ -413,6 +429,8 @@ def run_crawl(config_path: str):
                     page_number=page_number,
                     fetch_mode=fetch_mode,
                     http_status=http_status,
+                    final_url=final_url,
+                    is_seed_url_valid=is_seed_url_valid,
                     html=html,
                     listing_urls_found=len(listing_urls),
                     is_blocked=list_page_blocked,
@@ -429,6 +447,7 @@ def run_crawl(config_path: str):
                         "crawl_id": crawl_id,
                         "type": "listing_page",
                         "url": page_url,
+                        "final_url": final_url,
                         "crawl_status": "blocked",
                         "fetch_mode": fetch_mode,
                         "http_status": http_status,
@@ -436,10 +455,11 @@ def run_crawl(config_path: str):
                         "html_preview": html_preview,
                         "error_message": "Blocked by anti-bot protection",
                         "retry_count": retry_count,
+                        "is_seed_url_valid": is_seed_url_valid,
                         "scraped_at": now_utc_iso()
                     })
 
-                    print("  BLOCKED: anti-bot page detected.")
+                    print_error("  BLOCKED: anti-bot page detected.")
                     if stop_on_block:
                         print("  stop_on_block=true -> Stop this target.")
                         break
@@ -459,7 +479,9 @@ def run_crawl(config_path: str):
                     "listing_url": listing_url,
                     "page_url": page_url,
                     "page_number": page_number,
-                    "crawl_seed_url": seed_url_override or build_seed_url(base_url, category, district, 1),
+                    "crawl_seed_url": current_seed_url,
+                    "final_seed_url": current_final_seed_url or final_url,
+                    "is_seed_url_valid": current_is_seed_url_valid if current_is_seed_url_valid is not None else is_seed_url_valid,
                 } for listing_url in listing_urls)
 
             except Exception as e:
@@ -474,6 +496,8 @@ def run_crawl(config_path: str):
                     page_number=page_number,
                     fetch_mode=fetch_mode,
                     http_status=None,
+                    final_url=None,
+                    is_seed_url_valid=False,
                     html="",
                     listing_urls_found=0,
                     is_blocked=False,
@@ -484,11 +508,13 @@ def run_crawl(config_path: str):
                     "crawl_id": crawl_id,
                     "type": "listing_page",
                     "url": page_url,
+                    "final_url": None,
                     "crawl_status": classify_failure_status(None, str(e)),
                     "fetch_mode": fetch_mode,
                     "http_status": None,
                     "error_message": str(e),
                     "retry_count": max_retries,
+                    "is_seed_url_valid": False,
                     "scraped_at": now_utc_iso()
                 })
 
@@ -507,7 +533,7 @@ def run_crawl(config_path: str):
             scraped_at = now_utc_iso()
 
             try:
-                http_status, detail_html, retry_count, fetch_error = fetch_with_retry(
+                http_status, detail_html, final_detail_url, retry_count, fetch_error = fetch_with_retry(
                     listing_url,
                     mode=fetch_mode,
                     max_retries=max_retries,
@@ -528,12 +554,16 @@ def run_crawl(config_path: str):
                         "crawl_id": crawl_id,
                         "type": "detail_page",
                         "listing_url": listing_url,
+                        "final_detail_url": final_detail_url,
                         "crawl_status": crawl_status,
                         "fetch_mode": fetch_mode,
                         "http_status": http_status,
                         "error_message": f"HTTP {http_status}",
                         "scraped_at": scraped_at,
                         "crawl_seed_url": listing_entry["crawl_seed_url"],
+                        "source_seed_url": listing_entry["crawl_seed_url"],
+                        "final_seed_url": listing_entry.get("final_seed_url"),
+                        "is_seed_url_valid": listing_entry.get("is_seed_url_valid"),
                         "page_url": listing_entry["page_url"],
                         "page_number": listing_entry["page_number"],
                         "retry_count": retry_count,
@@ -542,6 +572,23 @@ def run_crawl(config_path: str):
 
                 detail_text = html_to_text(detail_html)
                 basic_fields = extract_phase1_stub_fields(detail_text, listing_url)
+                detail_location_raw = extract_detail_location_raw(detail_text, location_label, location_slug)
+                location_match_status, location_match_confidence, location_match_method = classify_location_match(
+                    raw_text=detail_location_raw or detail_text,
+                    expected_label=location_label,
+                    expected_slug=location_slug,
+                    is_seed_url_valid=bool(listing_entry.get("is_seed_url_valid")),
+                    known_location_labels=known_location_labels,
+                )
+                category_match_status, category_match_confidence = classify_category_match(detail_text, category)
+
+                if location_match_status in {"mismatch", "unknown"}:
+                    print_error(f"  LOCATION AUDIT: {location_match_status} for {listing_url}")
+                elif location_match_status == "assumed_from_seed":
+                    print_warning(f"  LOCATION AUDIT: assumed_from_seed for {listing_url}")
+
+                if category_match_status != "matched":
+                    print_warning(f"  CATEGORY AUDIT: {category_match_status} for {listing_url}")
 
                 listing_id = basic_fields.get("listing_id") or str(abs(hash(listing_url)))
 
@@ -570,11 +617,28 @@ def run_crawl(config_path: str):
                     "crawl_category_label": target.get("category_label"),
                     "crawl_city": city,
                     "crawl_city_label": target.get("city_label"),
-                    "crawl_district": district,
-                    "crawl_district_label": target.get("district_label"),
+                    "crawl_city_slug": target.get("city_slug"),
+                    "crawl_location_slug": location_slug,
+                    "crawl_location_path": target.get("location_path"),
+                    "crawl_location_label": location_label,
+                    "crawl_location_level": target.get("location_level"),
+                    "priority_group": target.get("priority_group"),
+                    "crawl_district": location_slug,
+                    "crawl_district_label": location_label,
                     "crawl_seed_url": listing_entry["crawl_seed_url"],
+                    "source_seed_url": listing_entry["crawl_seed_url"],
+                    "final_seed_url": listing_entry.get("final_seed_url"),
+                    "is_seed_url_valid": listing_entry.get("is_seed_url_valid"),
+                    "final_detail_url": final_detail_url,
                     "page_url": listing_entry["page_url"],
                     "page_number": listing_entry["page_number"],
+                    "detail_location_raw": detail_location_raw,
+                    "detail_address_raw": detail_location_raw,
+                    "location_match_status": location_match_status,
+                    "location_match_confidence": location_match_confidence,
+                    "location_match_method": location_match_method,
+                    "category_match_status": category_match_status,
+                    "category_match_confidence": category_match_confidence,
                     "parser_version": parser_version,
                     "crawler_version": crawler_version,
                     "error_message": None,
@@ -594,6 +658,30 @@ def run_crawl(config_path: str):
                 written_metadata_paths.append(metadata_path)
 
                 summary["success_count"] += 1
+                detail_audit = {
+                    "listing_id": listing_id,
+                    "listing_url": listing_url,
+                    "source_seed_url": listing_entry["crawl_seed_url"],
+                    "final_seed_url": listing_entry.get("final_seed_url"),
+                    "is_seed_url_valid": listing_entry.get("is_seed_url_valid"),
+                    "crawl_category": category,
+                    "crawl_location_path": target.get("location_path"),
+                    "crawl_location_label": location_label,
+                    "detail_location_raw": detail_location_raw,
+                    "location_match_status": location_match_status,
+                    "location_match_confidence": location_match_confidence,
+                    "location_match_method": location_match_method,
+                    "category_match_status": category_match_status,
+                    "category_match_confidence": category_match_confidence,
+                }
+                detail_audits.append(detail_audit)
+                if len(audit_samples) < 20:
+                    audit_samples.append({
+                        **detail_audit,
+                        "title": basic_fields.get("title_raw"),
+                        "price_raw": basic_fields.get("price_raw"),
+                        "area_raw": basic_fields.get("area_raw"),
+                    })
 
                 append_jsonl(crawl_log_path, {
                     **metadata,
@@ -614,8 +702,17 @@ def run_crawl(config_path: str):
                     "scraped_at": scraped_at,
                     "crawl_category": category,
                     "crawl_city": city,
-                    "crawl_district": district,
+                    "crawl_city_slug": target.get("city_slug"),
+                    "crawl_location_slug": location_slug,
+                    "crawl_location_path": target.get("location_path"),
+                    "crawl_location_label": location_label,
+                    "crawl_location_level": target.get("location_level"),
+                    "priority_group": target.get("priority_group"),
+                    "crawl_district": location_slug,
                     "crawl_seed_url": listing_entry["crawl_seed_url"],
+                    "source_seed_url": listing_entry["crawl_seed_url"],
+                    "final_seed_url": listing_entry.get("final_seed_url"),
+                    "is_seed_url_valid": listing_entry.get("is_seed_url_valid"),
                     "page_url": listing_entry["page_url"],
                     "page_number": listing_entry["page_number"],
                     "retry_count": max_retries,
@@ -647,11 +744,57 @@ def run_crawl(config_path: str):
     else:
         summary["avg_html_size"] = 0
 
+    valid_seed_urls = sum(1 for record in seed_url_audits if record.get("is_seed_url_valid"))
+    invalid_seed_urls = len(seed_url_audits) - valid_seed_urls
+    location_matched_count = sum(1 for record in detail_audits if record.get("location_match_status") == "matched")
+    location_assumed_from_seed_count = sum(1 for record in detail_audits if record.get("location_match_status") == "assumed_from_seed")
+    location_mismatch_count = sum(1 for record in detail_audits if record.get("location_match_status") == "mismatch")
+    location_unknown_count = sum(1 for record in detail_audits if record.get("location_match_status") == "unknown")
+    category_matched_count = sum(1 for record in detail_audits if record.get("category_match_status") == "matched")
+    category_mismatch_count = sum(1 for record in detail_audits if record.get("category_match_status") not in {"matched", None})
+    audit_pass_count = location_matched_count + location_assumed_from_seed_count
+
+    location_audit = {
+        "crawl_id": crawl_id,
+        "source": source,
+        "crawl_date": crawl_date,
+        "total_seed_urls": len(seed_url_audits),
+        "valid_seed_urls": valid_seed_urls,
+        "invalid_seed_urls": invalid_seed_urls,
+        "total_listing_urls_found": summary["total_listing_urls_found"],
+        "detail_pages_crawled": summary["success_count"],
+        "location_matched_count": location_matched_count,
+        "location_assumed_from_seed_count": location_assumed_from_seed_count,
+        "location_mismatch_count": location_mismatch_count,
+        "location_unknown_count": location_unknown_count,
+        "category_matched_count": category_matched_count,
+        "category_mismatch_count": category_mismatch_count,
+        "audit_pass_rate": safe_rate(audit_pass_count, len(detail_audits)),
+        "seed_url_audits": seed_url_audits,
+        "detail_audit_records": detail_audits,
+    }
+
+    summary["valid_seed_urls"] = valid_seed_urls
+    summary["invalid_seed_urls"] = invalid_seed_urls
+    summary["location_matched_count"] = location_matched_count
+    summary["location_assumed_from_seed_count"] = location_assumed_from_seed_count
+    summary["location_mismatch_count"] = location_mismatch_count
+    summary["location_unknown_count"] = location_unknown_count
+    summary["category_matched_count"] = category_matched_count
+    summary["category_mismatch_count"] = category_mismatch_count
+    summary["audit_pass_rate"] = location_audit["audit_pass_rate"]
+
     summary_path = bronze_root / "crawl_log" / f"crawl_summary_{crawl_id}.json"
+    location_audit_path = bronze_root / "crawl_log" / f"crawl_location_audit_{crawl_id}.json"
+    audit_sample_path = bronze_root / "crawl_log" / f"audit_sample_{crawl_id}.csv"
     save_json_file(summary_path, summary)
+    save_json_file(location_audit_path, location_audit)
+    write_audit_sample_csv(audit_sample_path, audit_samples)
 
     print("Crawl finished.")
     print(json.dumps(summary, ensure_ascii=False, indent=2))
+    print(f"Location audit: {location_audit_path}")
+    print(f"Audit sample CSV: {audit_sample_path}")
     print(f"Audit command: python scripts\\audit_bronze.py --crawl-id {crawl_id}")
 
 if __name__ == "__main__":

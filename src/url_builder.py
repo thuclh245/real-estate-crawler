@@ -1,20 +1,20 @@
 def build_seed_url(
-    base_url: str, 
-    category: str, 
-    district: str, 
+    base_url: str,
+    category_slug: str,
+    location_path: str,
     page_number: int = 1) -> str:
     """
-    Build listing page URL from category and district.
+    Build listing page URL from category and full Batdongsan location path.
 
     Example:
-    category = ban-nha-rieng
-    district = cau-giay
+    category_slug = ban-nha-rieng
+    location_path = phuong-cau-giay-tp-ha-noi
     page_number = 1
 
     Output:
-    https://batdongsan.com.vn/ban-nha-rieng-cau-giay
+    https://batdongsan.com.vn/ban-nha-rieng-phuong-cau-giay-tp-ha-noi
     """
-    url = f"{base_url}/{category}-{district}"
+    url = f"{base_url.rstrip('/')}/{category_slug}-{location_path}"
 
     if page_number > 1:
         url = f"{url}/p{page_number}"

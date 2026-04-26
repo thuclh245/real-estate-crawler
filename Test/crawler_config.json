@@ -1,9 +1,0 @@
-{
-  "start_url": "https://batdongsan.com.vn/nha-dat-ban-cau-giay",
-  "max_pages": 5,
-  "max_items": 50,
-  "page_delay_min": 1.0,
-  "page_delay_max": 2.0,
-  "detail_delay_min": 0.5,
-  "detail_delay_max": 1.5
-}

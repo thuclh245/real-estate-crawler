@@ -62,7 +62,7 @@ crawl_settings:
   parser_version: v0.1
 ```
 
-Each target should include `business_type`, `category`, `property_type_group`, `city`, `district`, and `seed_url`.
+Each target should include `business_type`, `category`, `property_type_group`, `city_slug`, `location_path`, and optionally `seed_url`. Batdongsan seed URLs should be built with the full location path, for example `ban-can-ho-chung-cu-phuong-cau-giay-tp-ha-noi`, not the old district-only form.
 
 ## Run the Crawler
 
@@ -76,17 +76,28 @@ Run with a specific config:
 ```powershell
 python src\crawl.py --config configs\crawl_targets.yaml
 python src\crawl.py --config configs\crawl_targets_scale.yaml
+python src\crawl.py --config configs\team\priority_a_ha_noi.yaml
 ```
 
-`configs/crawl_targets.yaml` is for smaller tests. `configs/crawl_targets_scale.yaml` is for a moderate scale batch:
+`configs/crawl_targets.yaml` is for smaller tests. `configs/crawl_targets_scale.yaml` is for a moderate scale batch. `configs/team/priority_a_ha_noi.yaml` covers the priority A Hanoi locations across apartment, house, land, and villa/townhouse categories:
 
 ```text
-max_pages_per_target = 2
+max_pages_per_target = 1
 max_listings_per_target = 20
-3 targets x 20 = up to 60 listings/run
+4 locations x 4 categories x 20 = up to 320 listings/run
 ```
 
 After a successful run, the terminal prints a `crawl_summary` with metrics such as:
+
+The crawler also writes location/category audit files next to the crawl summary:
+
+```text
+data/bronze/source=batdongsan/crawl_date=YYYY-MM-DD/crawl_id=<crawl_id>/crawl_log/
+    crawl_location_audit_<crawl_id>.json
+    audit_sample_<crawl_id>.csv
+```
+
+Seed URLs are checked against the final URL after fetch. If a target redirects to a generic page such as `/nha-dat-ban`, the crawler prints a red error and skips detail crawling for that seed. Detail records also include `source_seed_url`, `final_seed_url`, `is_seed_url_valid`, `detail_location_raw`, `location_match_status`, `location_match_confidence`, `category_match_status`, and `category_match_confidence`.
 
 ```text
 crawl_id
