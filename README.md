@@ -77,15 +77,46 @@ Run with a specific config:
 python src\crawl.py --config configs\crawl_targets.yaml
 python src\crawl.py --config configs\crawl_targets_scale.yaml
 python src\crawl.py --config configs\team\priority_a_ha_noi.yaml
+python src\crawl.py --config configs\team\priority_a_ha_noi_expand_01.yaml
 ```
 
-`configs/crawl_targets.yaml` is for smaller tests. `configs/crawl_targets_scale.yaml` is for a moderate scale batch. `configs/team/priority_a_ha_noi.yaml` covers the priority A Hanoi locations across apartment, house, land, and villa/townhouse categories:
+Use `.\.venv\Scripts\python.exe` instead of `python` if PowerShell is not using the project virtual environment.
+
+Config purpose:
+
+```text
+configs/crawl_targets.yaml
+  Small smoke test, 3 targets.
+
+configs/crawl_targets_scale.yaml
+  Moderate scale batch, 3 targets with more pages/listings.
+
+configs/team/priority_a_ha_noi.yaml
+  Priority A Hanoi batch 01:
+  Thanh Xuân, Cầu Giấy, Đống Đa, Hà Đông.
+
+configs/team/priority_a_ha_noi_expand_01.yaml
+  Priority A Hanoi expanded batch 01:
+  Hoàn Kiếm, Ba Đình, Hoàng Mai, Tây Hồ, Từ Liêm, Hai Bà Trưng.
+```
+
+`configs/team/priority_a_ha_noi.yaml` covers the first priority A Hanoi locations across apartment, house, land, and villa/townhouse categories:
 
 ```text
 max_pages_per_target = 1
 max_listings_per_target = 20
 4 locations x 4 categories x 20 = up to 320 listings/run
 ```
+
+`configs/team/priority_a_ha_noi_expand_01.yaml` adds six more Hanoi locations:
+
+```text
+max_pages_per_target = 1
+max_listings_per_target = 20
+6 locations x 4 categories x 20 = up to 480 listings/run
+```
+
+For group work, each member should run only one small config at a time. If the team splits work manually, copy a team config and reduce it to 2-3 locations per person.
 
 After a successful run, the terminal prints a `crawl_summary` with metrics such as:
 
