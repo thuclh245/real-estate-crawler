@@ -142,6 +142,16 @@ def audit_location(record: dict, target: dict, known_location_labels: list[str] 
                 "location_match_method": f"{method}_contains_other_location:{conflict_label}",
             }
 
+        if evidence_text and method in {"detail_address_block", "listing_card_location", "breadcrumb"}:
+            return {
+                "location_evidence_text": evidence_text,
+                "location_evidence_source": method,
+                "detail_location_raw": evidence_text if method == "detail_address_block" else None,
+                "location_match_status": "mismatch",
+                "location_match_confidence": "low",
+                "location_match_method": f"{method}_does_not_match_target",
+            }
+
     detail_url = record.get("final_detail_url") or record.get("listing_url") or ""
     if expected_path and expected_path in detail_url:
         return {
