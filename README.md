@@ -97,7 +97,9 @@ data/bronze/source=batdongsan/crawl_date=YYYY-MM-DD/crawl_id=<crawl_id>/crawl_lo
     audit_sample_<crawl_id>.csv
 ```
 
-Seed URLs are checked against the final URL after fetch. If a target redirects to a generic page such as `/nha-dat-ban`, the crawler prints a red error and skips detail crawling for that seed. Detail records also include `source_seed_url`, `final_seed_url`, `is_seed_url_valid`, `detail_location_raw`, `location_match_status`, `location_match_confidence`, `category_match_status`, and `category_match_confidence`.
+Seed URLs are checked against the final URL after fetch. If a target redirects to a generic page such as `/nha-dat-ban`, the crawler prints a red error and skips detail crawling for that seed. Detail records also include `source_seed_url`, `final_seed_url`, `is_seed_url_valid`, `listing_card_location_raw`, `listing_card_old_district_raw`, `detail_address_raw`, `breadcrumb_location_raw`, `location_evidence_text`, `location_evidence_source`, `location_match_status`, `location_match_confidence`, `category_match_status`, and `category_match_confidence`.
+
+Location audit uses stronger evidence first: detail address block, listing card location, breadcrumb, detail URL, title/description, then seed URL fallback. If a match only comes from title or description, confidence is `medium` and `detail_location_raw` stays empty so it is not confused with a real address field.
 
 ```text
 crawl_id

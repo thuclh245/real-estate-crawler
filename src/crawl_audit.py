@@ -108,6 +108,84 @@ def classify_location_match(
     return "assumed_from_seed", "medium", "seed_url_context"
 
 
+def audit_location(record: dict, target: dict, known_location_labels: list[str] | None = None) -> dict:
+    expected_label = target.get("location_label") or target.get("district_label")
+    expected_slug = target.get("location_slug") or target.get("district")
+    expected_path = target.get("location_path") or target.get("district") or ""
+    is_seed_url_valid = bool(record.get("is_seed_url_valid"))
+
+    evidence_candidates = [
+        ("detail_address_block", record.get("detail_address_raw"), "high"),
+        ("listing_card_location", record.get("listing_card_location_raw"), "high"),
+        ("breadcrumb", record.get("breadcrumb_location_raw") or record.get("breadcrumb_raw"), "high"),
+    ]
+
+    for method, evidence_text, confidence in evidence_candidates:
+        if evidence_text and check_location_match(evidence_text, expected_label, expected_slug):
+            return {
+                "location_evidence_text": evidence_text,
+                "location_evidence_source": method,
+                "detail_location_raw": evidence_text,
+                "location_match_status": "matched",
+                "location_match_confidence": confidence,
+                "location_match_method": method,
+            }
+
+        conflict_label = detect_location_conflict(evidence_text or "", expected_label, known_location_labels or [])
+        if conflict_label:
+            return {
+                "location_evidence_text": evidence_text,
+                "location_evidence_source": method,
+                "detail_location_raw": evidence_text,
+                "location_match_status": "mismatch",
+                "location_match_confidence": "low",
+                "location_match_method": f"{method}_contains_other_location:{conflict_label}",
+            }
+
+    detail_url = record.get("final_detail_url") or record.get("listing_url") or ""
+    if expected_path and expected_path in detail_url:
+        return {
+            "location_evidence_text": None,
+            "location_evidence_source": "detail_url",
+            "detail_location_raw": None,
+            "location_match_status": "matched",
+            "location_match_confidence": "high",
+            "location_match_method": "detail_url_contains_location_path",
+        }
+
+    title_description = " ".join(
+        text for text in [record.get("title"), record.get("description")] if text
+    )
+    if title_description and check_location_match(title_description, expected_label, expected_slug):
+        return {
+            "location_evidence_text": None,
+            "location_evidence_source": "title_or_description",
+            "detail_location_raw": None,
+            "location_match_status": "matched",
+            "location_match_confidence": "medium",
+            "location_match_method": "title_or_description_contains_location",
+        }
+
+    if is_seed_url_valid:
+        return {
+            "location_evidence_text": None,
+            "location_evidence_source": "seed_url",
+            "detail_location_raw": None,
+            "location_match_status": "assumed_from_seed",
+            "location_match_confidence": "medium",
+            "location_match_method": "seed_url_context",
+        }
+
+    return {
+        "location_evidence_text": None,
+        "location_evidence_source": "none",
+        "detail_location_raw": None,
+        "location_match_status": "unknown",
+        "location_match_confidence": "low",
+        "location_match_method": "no_location_evidence",
+    }
+
+
 def classify_category_match(raw_text: str, category_slug: str) -> tuple[str, str]:
     if check_category_match(raw_text, category_slug):
         return "matched", "high"
@@ -146,7 +224,13 @@ def write_audit_sample_csv(path: Path, rows: list[dict]):
         "title",
         "price_raw",
         "area_raw",
+        "listing_card_location_raw",
+        "listing_card_old_district_raw",
+        "detail_address_raw",
+        "breadcrumb_location_raw",
         "detail_location_raw",
+        "location_evidence_text",
+        "location_evidence_source",
         "location_match_status",
         "category_match_status",
     ]

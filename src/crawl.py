@@ -8,9 +8,8 @@ from datetime import datetime
 from urllib.parse import urljoin
 
 from crawl_audit import (
+    audit_location,
     classify_category_match,
-    classify_location_match,
-    extract_detail_location_raw,
     print_error,
     print_warning,
     safe_rate,
@@ -149,26 +148,85 @@ def save_list_page_debug(
     return debug_html_path, debug_metadata_path
 
 
-def extract_listing_urls_from_listing_page(html: str) -> list[str]:
+def clean_text(value: str | None) -> str | None:
+    if value is None:
+        return None
+    value = " ".join(value.split())
+    value = value.strip(" ·")
+    return value or None
+
+
+def parse_listing_card_old_district(location_raw: str | None) -> str | None:
+    if not location_raw:
+        return None
+    match = re.search(r"\(([^)]*cũ[^)]*)\)", location_raw, flags=re.IGNORECASE)
+    return clean_text(match.group(1)) if match else None
+
+
+def parse_detail_page_location_fields(html: str) -> dict:
     from bs4 import BeautifulSoup
-    import re
 
     soup = BeautifulSoup(html or "", "lxml")
-    urls = set()
+    title = clean_text(soup.select_one(".re__pr-title, .js__pr-title").get_text(" ", strip=True)) if soup.select_one(".re__pr-title, .js__pr-title") else None
+    address = clean_text(soup.select_one(".re__address-line-1").get_text(" ", strip=True)) if soup.select_one(".re__address-line-1") else None
+    breadcrumb = clean_text(soup.select_one(".re__breadcrumb, .js__breadcrumb").get_text(" ", strip=True)) if soup.select_one(".re__breadcrumb, .js__breadcrumb") else None
+    description = clean_text(soup.select_one(".re__section-body").get_text(" ", strip=True)) if soup.select_one(".re__section-body") else None
 
-    for a in soup.find_all("a", href=True):
-        href = (a.get("href") or "").strip()
+    return {
+        "detail_title": title,
+        "detail_address_raw": address,
+        "breadcrumb_raw": breadcrumb,
+        "breadcrumb_location_raw": breadcrumb,
+        "detail_description": description,
+    }
+
+
+def extract_listing_entries_from_listing_page(html: str) -> list[dict]:
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup(html or "", "lxml")
+    entries_by_url = {}
+
+    cards = soup.select(".js__card-listing")
+    if not cards:
+        cards = [a.parent for a in soup.find_all("a", href=True) if "pr" in (a.get("href") or "")]
+
+    for card in cards:
+        if not card:
+            continue
+
+        link = card.select_one("a[href*='pr'][href*='ban-']") or card.find("a", href=True)
+        href = (link.get("href") or "").strip() if link else ""
         if not href:
             continue
 
         absolute = urljoin("https://batdongsan.com.vn", href)
-        if "batdongsan.com.vn" not in absolute:
+        if "batdongsan.com.vn" not in absolute or not re.search(r"pr\d+", absolute):
             continue
 
-        if re.search(r"pr\d+", absolute) and "ban-" in absolute:
-            urls.add(absolute)
+        title_el = card.select_one(".js__card-title, .pr-title, .re__card-title")
+        price_el = card.select_one(".re__card-config-price")
+        area_el = card.select_one(".re__card-config-area")
+        location_el = card.select_one(".re__card-location")
+        description_el = card.select_one(".js__card-description, .re__card-description")
 
-    return list(urls)
+        location_raw = clean_text(location_el.get_text(" ", strip=True)) if location_el else None
+        entry = {
+            "listing_url": absolute,
+            "listing_card_title": clean_text(title_el.get_text(" ", strip=True)) if title_el else None,
+            "listing_card_price_raw": clean_text(price_el.get_text(" ", strip=True)) if price_el else None,
+            "listing_card_area_raw": clean_text(area_el.get_text(" ", strip=True)) if area_el else None,
+            "listing_card_location_raw": location_raw,
+            "listing_card_old_district_raw": parse_listing_card_old_district(location_raw),
+            "listing_card_description": clean_text(description_el.get_text(" ", strip=True)) if description_el else None,
+        }
+        entries_by_url.setdefault(absolute, entry)
+
+    return list(entries_by_url.values())
+
+
+def extract_listing_urls_from_listing_page(html: str) -> list[str]:
+    return [entry["listing_url"] for entry in extract_listing_entries_from_listing_page(html)]
 
 def run_crawler(config_path: str | Path):
     config = load_config(config_path)
@@ -416,10 +474,10 @@ def run_crawl(config_path: str):
                     })
                     continue
 
-                listing_urls = extract_listing_urls_from_listing_page(html)
-                print(f"  Listing URLs found: {len(listing_urls)}")
+                listing_entries = extract_listing_entries_from_listing_page(html)
+                print(f"  Listing URLs found: {len(listing_entries)}")
 
-                list_page_blocked = is_blocked_page(http_status, html, listing_urls_found=len(listing_urls))
+                list_page_blocked = is_blocked_page(http_status, html, listing_urls_found=len(listing_entries))
                 save_list_page_debug(
                     debug_list_root=debug_list_root,
                     crawl_id=crawl_id,
@@ -432,7 +490,7 @@ def run_crawl(config_path: str):
                     final_url=final_url,
                     is_seed_url_valid=is_seed_url_valid,
                     html=html,
-                    listing_urls_found=len(listing_urls),
+                    listing_urls_found=len(listing_entries),
                     is_blocked=list_page_blocked,
                     error_message="Blocked by anti-bot protection" if list_page_blocked else None,
                 )
@@ -466,7 +524,7 @@ def run_crawl(config_path: str):
                     print("  stop_on_block=false -> Continue to next page.")
                     continue
 
-                if not listing_urls:
+                if not listing_entries:
                     from bs4 import BeautifulSoup
 
                     soup = BeautifulSoup(html or "", "lxml")
@@ -476,13 +534,13 @@ def run_crawl(config_path: str):
                         print(f"    {idx}: {href}")
 
                 target_listing_entries.extend({
-                    "listing_url": listing_url,
+                    **listing_entry,
                     "page_url": page_url,
                     "page_number": page_number,
                     "crawl_seed_url": current_seed_url,
                     "final_seed_url": current_final_seed_url or final_url,
                     "is_seed_url_valid": current_is_seed_url_valid if current_is_seed_url_valid is not None else is_seed_url_valid,
-                } for listing_url in listing_urls)
+                } for listing_entry in listing_entries)
 
             except Exception as e:
                 summary["failed_count"] += 1
@@ -572,14 +630,25 @@ def run_crawl(config_path: str):
 
                 detail_text = html_to_text(detail_html)
                 basic_fields = extract_phase1_stub_fields(detail_text, listing_url)
-                detail_location_raw = extract_detail_location_raw(detail_text, location_label, location_slug)
-                location_match_status, location_match_confidence, location_match_method = classify_location_match(
-                    raw_text=detail_location_raw or detail_text,
-                    expected_label=location_label,
-                    expected_slug=location_slug,
-                    is_seed_url_valid=bool(listing_entry.get("is_seed_url_valid")),
+                detail_fields = parse_detail_page_location_fields(detail_html)
+                title = detail_fields.get("detail_title") or listing_entry.get("listing_card_title") or basic_fields.get("title_raw")
+                description = detail_fields.get("detail_description") or listing_entry.get("listing_card_description")
+                location_audit = audit_location(
+                    {
+                        **listing_entry,
+                        **detail_fields,
+                        "listing_url": listing_url,
+                        "final_detail_url": final_detail_url,
+                        "title": title,
+                        "description": description,
+                    },
+                    target,
                     known_location_labels=known_location_labels,
                 )
+                detail_location_raw = location_audit.get("detail_location_raw")
+                location_match_status = location_audit["location_match_status"]
+                location_match_confidence = location_audit["location_match_confidence"]
+                location_match_method = location_audit["location_match_method"]
                 category_match_status, category_match_confidence = classify_category_match(detail_text, category)
 
                 if location_match_status in {"mismatch", "unknown"}:
@@ -625,6 +694,8 @@ def run_crawl(config_path: str):
                     "priority_group": target.get("priority_group"),
                     "crawl_district": location_slug,
                     "crawl_district_label": location_label,
+                    "title": title,
+                    "description": description,
                     "crawl_seed_url": listing_entry["crawl_seed_url"],
                     "source_seed_url": listing_entry["crawl_seed_url"],
                     "final_seed_url": listing_entry.get("final_seed_url"),
@@ -632,8 +703,17 @@ def run_crawl(config_path: str):
                     "final_detail_url": final_detail_url,
                     "page_url": listing_entry["page_url"],
                     "page_number": listing_entry["page_number"],
+                    "listing_card_title": listing_entry.get("listing_card_title"),
+                    "listing_card_price_raw": listing_entry.get("listing_card_price_raw"),
+                    "listing_card_area_raw": listing_entry.get("listing_card_area_raw"),
+                    "listing_card_location_raw": listing_entry.get("listing_card_location_raw"),
+                    "listing_card_old_district_raw": listing_entry.get("listing_card_old_district_raw"),
+                    "breadcrumb_raw": detail_fields.get("breadcrumb_raw"),
+                    "breadcrumb_location_raw": detail_fields.get("breadcrumb_location_raw"),
                     "detail_location_raw": detail_location_raw,
-                    "detail_address_raw": detail_location_raw,
+                    "detail_address_raw": detail_fields.get("detail_address_raw"),
+                    "location_evidence_text": location_audit.get("location_evidence_text"),
+                    "location_evidence_source": location_audit.get("location_evidence_source"),
                     "location_match_status": location_match_status,
                     "location_match_confidence": location_match_confidence,
                     "location_match_method": location_match_method,
@@ -667,7 +747,13 @@ def run_crawl(config_path: str):
                     "crawl_category": category,
                     "crawl_location_path": target.get("location_path"),
                     "crawl_location_label": location_label,
+                    "listing_card_location_raw": listing_entry.get("listing_card_location_raw"),
+                    "listing_card_old_district_raw": listing_entry.get("listing_card_old_district_raw"),
+                    "detail_address_raw": detail_fields.get("detail_address_raw"),
+                    "breadcrumb_location_raw": detail_fields.get("breadcrumb_location_raw"),
                     "detail_location_raw": detail_location_raw,
+                    "location_evidence_text": location_audit.get("location_evidence_text"),
+                    "location_evidence_source": location_audit.get("location_evidence_source"),
                     "location_match_status": location_match_status,
                     "location_match_confidence": location_match_confidence,
                     "location_match_method": location_match_method,
@@ -678,9 +764,9 @@ def run_crawl(config_path: str):
                 if len(audit_samples) < 20:
                     audit_samples.append({
                         **detail_audit,
-                        "title": basic_fields.get("title_raw"),
-                        "price_raw": basic_fields.get("price_raw"),
-                        "area_raw": basic_fields.get("area_raw"),
+                        "title": title,
+                        "price_raw": listing_entry.get("listing_card_price_raw") or basic_fields.get("price_raw"),
+                        "area_raw": listing_entry.get("listing_card_area_raw") or basic_fields.get("area_raw"),
                     })
 
                 append_jsonl(crawl_log_path, {
