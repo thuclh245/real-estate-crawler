@@ -1,0 +1,167 @@
+source: batdongsan.com.vn
+base_url: https://batdongsan.com.vn
+
+crawl_settings:
+  member_id: team_priority_a_expand_01
+  fetch_mode: crawl4ai
+  stop_on_block: true
+  save_images: false
+  request_delay_seconds: 5
+  concurrency: 1
+  max_pages_per_target: 1
+  max_listings_per_target: 20
+  max_retries: 1
+  retry_delay_seconds: 10
+  crawler_version: v0.1
+  parser_version: v0.1
+
+targets:
+  - city_slug: tp-ha-noi
+    city_label: Hà Nội
+    location_slug: phuong-hoan-kiem
+    location_path: phuong-hoan-kiem-tp-ha-noi
+    location_label: Hoàn Kiếm
+    location_level: ward_or_area
+    priority_group: A
+    categories:
+      - slug: ban-can-ho-chung-cu
+        label: Bán căn hộ chung cư
+        property_type_group: apartment
+        listing_business_type: sale
+      - slug: ban-nha-rieng
+        label: Bán nhà riêng
+        property_type_group: house
+        listing_business_type: sale
+      - slug: ban-dat
+        label: Bán đất
+        property_type_group: land
+        listing_business_type: sale
+      - slug: ban-nha-biet-thu-lien-ke
+        label: Bán nhà biệt thự, liền kề
+        property_type_group: villa_townhouse
+        listing_business_type: sale
+
+  - city_slug: tp-ha-noi
+    city_label: Hà Nội
+    location_slug: phuong-ba-dinh
+    location_path: phuong-ba-dinh-tp-ha-noi
+    location_label: Ba Đình
+    location_level: ward_or_area
+    priority_group: A
+    categories:
+      - slug: ban-can-ho-chung-cu
+        label: Bán căn hộ chung cư
+        property_type_group: apartment
+        listing_business_type: sale
+      - slug: ban-nha-rieng
+        label: Bán nhà riêng
+        property_type_group: house
+        listing_business_type: sale
+      - slug: ban-dat
+        label: Bán đất
+        property_type_group: land
+        listing_business_type: sale
+      - slug: ban-nha-biet-thu-lien-ke
+        label: Bán nhà biệt thự, liền kề
+        property_type_group: villa_townhouse
+        listing_business_type: sale
+
+  - city_slug: tp-ha-noi
+    city_label: Hà Nội
+    location_slug: phuong-hoang-mai
+    location_path: phuong-hoang-mai-tp-ha-noi
+    location_label: Hoàng Mai
+    location_level: ward_or_area
+    priority_group: A
+    categories:
+      - slug: ban-can-ho-chung-cu
+        label: Bán căn hộ chung cư
+        property_type_group: apartment
+        listing_business_type: sale
+      - slug: ban-nha-rieng
+        label: Bán nhà riêng
+        property_type_group: house
+        listing_business_type: sale
+      - slug: ban-dat
+        label: Bán đất
+        property_type_group: land
+        listing_business_type: sale
+      - slug: ban-nha-biet-thu-lien-ke
+        label: Bán nhà biệt thự, liền kề
+        property_type_group: villa_townhouse
+        listing_business_type: sale
+
+  - city_slug: tp-ha-noi
+    city_label: Hà Nội
+    location_slug: phuong-tay-ho
+    location_path: phuong-tay-ho-tp-ha-noi
+    location_label: Tây Hồ
+    location_level: ward_or_area
+    priority_group: A
+    categories:
+      - slug: ban-can-ho-chung-cu
+        label: Bán căn hộ chung cư
+        property_type_group: apartment
+        listing_business_type: sale
+      - slug: ban-nha-rieng
+        label: Bán nhà riêng
+        property_type_group: house
+        listing_business_type: sale
+      - slug: ban-dat
+        label: Bán đất
+        property_type_group: land
+        listing_business_type: sale
+      - slug: ban-nha-biet-thu-lien-ke
+        label: Bán nhà biệt thự, liền kề
+        property_type_group: villa_townhouse
+        listing_business_type: sale
+
+  - city_slug: tp-ha-noi
+    city_label: Hà Nội
+    location_slug: phuong-tu-liem
+    location_path: phuong-tu-liem-tp-ha-noi
+    location_label: Từ Liêm
+    location_level: ward_or_area
+    priority_group: A
+    categories:
+      - slug: ban-can-ho-chung-cu
+        label: Bán căn hộ chung cư
+        property_type_group: apartment
+        listing_business_type: sale
+      - slug: ban-nha-rieng
+        label: Bán nhà riêng
+        property_type_group: house
+        listing_business_type: sale
+      - slug: ban-dat
+        label: Bán đất
+        property_type_group: land
+        listing_business_type: sale
+      - slug: ban-nha-biet-thu-lien-ke
+        label: Bán nhà biệt thự, liền kề
+        property_type_group: villa_townhouse
+        listing_business_type: sale
+
+  - city_slug: tp-ha-noi
+    city_label: Hà Nội
+    location_slug: phuong-hai-ba-trung
+    location_path: phuong-hai-ba-trung-tp-ha-noi
+    location_label: Hai Bà Trưng
+    location_level: ward_or_area
+    priority_group: A
+    categories:
+      - slug: ban-can-ho-chung-cu
+        label: Bán căn hộ chung cư
+        property_type_group: apartment
+        listing_business_type: sale
+      - slug: ban-nha-rieng
+        label: Bán nhà riêng
+        property_type_group: house
+        listing_business_type: sale
+      - slug: ban-dat
+        label: Bán đất
+        property_type_group: land
+        listing_business_type: sale
+      - slug: ban-nha-biet-thu-lien-ke
+        label: Bán nhà biệt thự, liền kề
+        property_type_group: villa_townhouse
+        listing_business_type: sale
