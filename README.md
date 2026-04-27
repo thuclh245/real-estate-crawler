@@ -86,12 +86,23 @@ Each target should include `business_type`, `category`, `property_type_group`, `
 
 ## Run the Crawler
 
+Windows PowerShell:
+
 ```powershell
 .\.venv\Scripts\Activate.ps1
 python src\crawl.py
 ```
 
+Linux/macOS Bash:
+
+```bash
+source .venv/bin/activate
+python src/crawl.py
+```
+
 Run with a specific config:
+
+Windows PowerShell:
 
 ```powershell
 python src\crawl.py --config configs\crawl_targets.yaml
@@ -100,7 +111,16 @@ python src\crawl.py --config configs\team\priority_a_ha_noi.yaml
 python src\crawl.py --config configs\team\priority_a_ha_noi_expand_01.yaml
 ```
 
-Use `.\.venv\Scripts\python.exe` instead of `python` if PowerShell is not using the project virtual environment.
+Linux/macOS Bash:
+
+```bash
+python src/crawl.py --config configs/crawl_targets.yaml
+python src/crawl.py --config configs/crawl_targets_scale.yaml
+python src/crawl.py --config configs/team/priority_a_ha_noi.yaml
+python src/crawl.py --config configs/team/priority_a_ha_noi_expand_01.yaml
+```
+
+Use `.\.venv\Scripts\python.exe` instead of `python` if PowerShell is not using the project virtual environment. On Linux/macOS, use `.venv/bin/python`.
 
 Config purpose:
 
@@ -200,8 +220,16 @@ The `crawl_id` partition prevents raw HTML and metadata from being overwritten w
 
 After each run, the crawler prints the `crawl_id` and an audit command. Run:
 
+Windows PowerShell:
+
 ```powershell
 python scripts\audit_bronze.py --crawl-id <crawl_id>
+```
+
+Linux/macOS Bash:
+
+```bash
+python scripts/audit_bronze.py --crawl-id <crawl_id>
 ```
 
 Go if:
