@@ -729,10 +729,73 @@ python -m validation.check_phase3
 
 The GCS sync scripts use `gcloud storage rsync --exclude=".*\.crc$"` so Spark checksum files are not uploaded or downloaded.
 
-### 8. Current Project Flow
+### 8. Phase 4 Dashboard
+
+Phase 4 serves the Gold layer as a local analytics dashboard.
+
+Install dashboard dependencies:
+
+Windows PowerShell:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+Linux/macOS Bash:
+
+```bash
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+```
+
+Run dashboard:
+
+Windows PowerShell:
+
+```powershell
+.\.venv\Scripts\streamlit.exe run dashboard\app.py
+```
+
+Linux/macOS Bash:
+
+```bash
+streamlit run dashboard/app.py
+```
+
+Open:
 
 ```text
-Crawl -> Bronze -> Bronze-to-Silver -> Silver-to-Gold -> Sync to GCS
+http://localhost:8501
+```
+
+Dashboard tabs:
+
+```text
+Overview
+Data Quality
+Market
+Listings Explorer
+Snapshot Tracking
+```
+
+The dashboard reads:
+
+```text
+data/gold/phase3_summary.json
+data/gold/gold_current_listings/
+data/gold/gold_listing_snapshots/
+data/gold/gold_market_by_district_daily/
+data/gold/gold_market_by_property_type_daily/
+data/gold/gold_data_quality_daily/
+data/gold/gold_removed_listings/
+```
+
+Use dashboard screenshots in the report/demo after running Phase 3 and validating Gold.
+
+### 9. Current Project Flow
+
+```text
+Crawl -> Bronze -> Bronze-to-Silver -> Silver-to-Gold -> Dashboard -> Sync to GCS
 ```
 
 ## Design Docs
