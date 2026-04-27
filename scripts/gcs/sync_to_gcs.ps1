@@ -1,5 +1,5 @@
 $BUCKET = "gs://bigdata-subject-real-estate-lakehouse"
 
-gcloud storage cp --recursive data/bronze "$BUCKET/bronze"
-gcloud storage cp --recursive data/silver "$BUCKET/silver"
-gcloud storage cp --recursive data/gold "$BUCKET/gold"
+gcloud storage rsync --recursive --exclude=".*\.crc$" data/bronze "$BUCKET/bronze"
+gcloud storage rsync --recursive --exclude=".*\.crc$" data/silver "$BUCKET/silver"
+gcloud storage rsync --recursive --exclude=".*\.crc$" data/gold "$BUCKET/gold"

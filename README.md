@@ -483,9 +483,9 @@ Use this when a team member wants to pull shared data from the bucket before run
 Windows PowerShell:
 
 ```powershell
-gcloud storage cp --recursive gs://bigdata-subject-real-estate-lakehouse/bronze data/bronze
-gcloud storage cp --recursive gs://bigdata-subject-real-estate-lakehouse/silver data/silver
-gcloud storage cp --recursive gs://bigdata-subject-real-estate-lakehouse/gold data/gold
+gcloud storage rsync --recursive --exclude=".*\.crc$" gs://bigdata-subject-real-estate-lakehouse/bronze data/bronze
+gcloud storage rsync --recursive --exclude=".*\.crc$" gs://bigdata-subject-real-estate-lakehouse/silver data/silver
+gcloud storage rsync --recursive --exclude=".*\.crc$" gs://bigdata-subject-real-estate-lakehouse/gold data/gold
 ```
 
 Or run the helper script:
@@ -498,9 +498,9 @@ Linux/macOS Bash:
 
 ```bash
 mkdir -p data/bronze data/silver data/gold
-gcloud storage cp --recursive gs://bigdata-subject-real-estate-lakehouse/bronze/* data/bronze/
-gcloud storage cp --recursive gs://bigdata-subject-real-estate-lakehouse/silver/* data/silver/
-gcloud storage cp --recursive gs://bigdata-subject-real-estate-lakehouse/gold/* data/gold/
+gcloud storage rsync --recursive --exclude=".*\.crc$" gs://bigdata-subject-real-estate-lakehouse/bronze data/bronze
+gcloud storage rsync --recursive --exclude=".*\.crc$" gs://bigdata-subject-real-estate-lakehouse/silver data/silver
+gcloud storage rsync --recursive --exclude=".*\.crc$" gs://bigdata-subject-real-estate-lakehouse/gold data/gold
 ```
 
 Quick local check after sync:
@@ -526,9 +526,9 @@ Use this after crawling or running ETL locally:
 Windows PowerShell:
 
 ```powershell
-gcloud storage cp --recursive data/bronze gs://bigdata-subject-real-estate-lakehouse/bronze
-gcloud storage cp --recursive data/silver gs://bigdata-subject-real-estate-lakehouse/silver
-gcloud storage cp --recursive data/gold gs://bigdata-subject-real-estate-lakehouse/gold
+gcloud storage rsync --recursive --exclude=".*\.crc$" data/bronze gs://bigdata-subject-real-estate-lakehouse/bronze
+gcloud storage rsync --recursive --exclude=".*\.crc$" data/silver gs://bigdata-subject-real-estate-lakehouse/silver
+gcloud storage rsync --recursive --exclude=".*\.crc$" data/gold gs://bigdata-subject-real-estate-lakehouse/gold
 ```
 
 Or run the helper script:
@@ -540,9 +540,9 @@ powershell -ExecutionPolicy Bypass -File scripts\gcs\sync_to_gcs.ps1
 Linux/macOS Bash:
 
 ```bash
-gcloud storage cp --recursive data/bronze gs://bigdata-subject-real-estate-lakehouse/bronze
-gcloud storage cp --recursive data/silver gs://bigdata-subject-real-estate-lakehouse/silver
-gcloud storage cp --recursive data/gold gs://bigdata-subject-real-estate-lakehouse/gold
+gcloud storage rsync --recursive --exclude=".*\.crc$" data/bronze gs://bigdata-subject-real-estate-lakehouse/bronze
+gcloud storage rsync --recursive --exclude=".*\.crc$" data/silver gs://bigdata-subject-real-estate-lakehouse/silver
+gcloud storage rsync --recursive --exclude=".*\.crc$" data/gold gs://bigdata-subject-real-estate-lakehouse/gold
 ```
 
 Or run the helper script:
@@ -574,8 +574,9 @@ Windows PowerShell:
 ```powershell
 .\.venv\Scripts\python.exe src\crawl.py --config configs\crawl_targets_scale.yaml
 .\.venv\Scripts\python.exe src\bronze_to_silver.py --crawl-date 2026-04-25
-.\.venv\Scripts\python.exe src\silver_to_gold.py
 ```
+
+Phase 3 Gold should be run on Linux/VM because it uses Spark.
 
 Linux/macOS Bash:
 
@@ -586,7 +587,8 @@ python src/crawl.py --config configs/crawl_targets_scale.yaml
 python src/bronze_to_silver.py --crawl-date 2026-04-25
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 export PATH="$JAVA_HOME/bin:$PATH"
-python3 src/silver_to_gold.py
+python src/silver_to_gold.py
+python src/check_phase3.py
 ```
 
 After producing new data:
@@ -622,7 +624,36 @@ For easier student project setup, `Storage Object Admin` is also acceptable, but
 
 On a Google Cloud VM, attach the service account to the VM so code can access Cloud Storage without downloading a JSON key file.
 
-### 7. Current Project Flow
+### 7. Phase 3 Gold Outputs
+
+Run Phase 3:
+
+Linux/macOS Bash:
+
+```bash
+python src/silver_to_gold.py
+python src/check_phase3.py
+```
+
+Phase 3 is Spark-based. Prefer running this step on Linux/VM instead of Windows.
+
+Gold outputs:
+
+```text
+data/gold/phase3_summary.json
+data/gold/gold_current_listings/
+data/gold/gold_listing_snapshots/
+data/gold/gold_market_by_district_daily/
+data/gold/gold_market_by_property_type_daily/
+data/gold/gold_data_quality_daily/
+data/gold/gold_removed_listings/
+```
+
+`src/check_phase3.py` is the official Phase 3 validation checklist. If it prints `PASS: Phase 3 validation checklist`, the Gold layer is ready for report/dashboard use.
+
+The GCS sync scripts use `gcloud storage rsync --exclude=".*\.crc$"` so Spark checksum files are not uploaded or downloaded.
+
+### 8. Current Project Flow
 
 ```text
 Crawl -> Bronze -> Bronze-to-Silver -> Silver-to-Gold -> Sync to GCS

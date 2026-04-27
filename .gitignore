@@ -14,3 +14,6 @@ data/bronze/source=batdongsan/*
 data/silver/source=batdongsan/*
 
 data/gold
+data/silver/*
+
+data/gold/
