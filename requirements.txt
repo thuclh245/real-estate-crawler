@@ -1,6 +1,7 @@
 crawl4ai==0.8.6
-pandas==3.0.2
 pyarrow==20.0.0
+plotly==6.1.2
+streamlit==1.45.1
 
 # Gửi HTTP requests (GET/POST/headers/cookies), dùng để crawl dữ liệu web
 requests==2.33.1
@@ -15,7 +16,7 @@ lxml==5.4.0
 PyYAML==6.0.3
 
 # Xử lý dữ liệu dạng bảng (DataFrame), làm sạch & xuất CSV/Excel
-pandas==3.0.2
+pandas==2.2.3
 
 # Xử lý ngày giờ nâng cao (parse, timezone, timedelta)
 python-dateutil==2.9.0.post0
