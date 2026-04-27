@@ -1,5 +1,6 @@
 crawl4ai==0.8.6
 pandas==3.0.2
+pyarrow==20.0.0
 
 # Gửi HTTP requests (GET/POST/headers/cookies), dùng để crawl dữ liệu web
 requests==2.33.1

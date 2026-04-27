@@ -12,7 +12,9 @@ CSV is not the primary storage format in the current flow.
 
 ## Setup
 
-Use Windows PowerShell and the `.venv` environment.
+Use a local `.venv` environment.
+
+Windows PowerShell:
 
 ```powershell
 py -3.12 -m venv .venv
@@ -22,9 +24,27 @@ python -m pip install -r requirements.txt
 crawl4ai-setup
 ```
 
+Linux/macOS Bash:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install -r requirements.txt
+crawl4ai-setup
+```
+
 Quick check:
 
+Windows PowerShell:
+
 ```powershell
+python -c "from crawl4ai import AsyncWebCrawler; print('OK')"
+```
+
+Linux/macOS Bash:
+
+```bash
 python -c "from crawl4ai import AsyncWebCrawler; print('OK')"
 ```
 
@@ -237,6 +257,238 @@ If `http_status = 200`, `listing_urls_found > 0`, `is_blocked = false`, and `err
 - Images are not downloaded in the current version.
 - Raw HTML in Bronze is kept so it can be parsed again later.
 - The Phase 1 parser should stay minimal; the production parser belongs in the Silver/ETL phase.
+
+## Google Cloud Setup and Data Lakehouse Structure
+
+### 1. Google Cloud Project
+
+- Project ID: `bigdata-subject`
+- Bucket name: `gs://bigdata-subject-real-estate-lakehouse`
+- Region: `asia-southeast1`
+
+The Google Cloud project is used for:
+
+```text
+Cloud Storage data lake
+IAM access control
+Pipeline sharing across team members
+```
+
+After installing Google Cloud CLI, authenticate and select the project.
+
+Windows PowerShell:
+
+```powershell
+gcloud auth login
+gcloud config set project bigdata-subject
+```
+
+Linux/macOS Bash:
+
+```bash
+gcloud auth login
+gcloud config set project bigdata-subject
+```
+
+For local development with Google SDK libraries, also run:
+
+Windows PowerShell:
+
+```powershell
+gcloud auth application-default login
+```
+
+Linux/macOS Bash:
+
+```bash
+gcloud auth application-default login
+```
+
+Check access:
+
+Windows PowerShell:
+
+```powershell
+gcloud projects list
+gcloud storage buckets list
+gcloud storage ls gs://bigdata-subject-real-estate-lakehouse
+```
+
+Linux/macOS Bash:
+
+```bash
+gcloud projects list
+gcloud storage buckets list
+gcloud storage ls gs://bigdata-subject-real-estate-lakehouse
+```
+
+Upload a small test file:
+
+Windows PowerShell:
+
+```powershell
+gcloud storage cp README.md gs://bigdata-subject-real-estate-lakehouse/test/README.md
+gcloud storage ls gs://bigdata-subject-real-estate-lakehouse/test/
+```
+
+Linux/macOS Bash:
+
+```bash
+gcloud storage cp README.md gs://bigdata-subject-real-estate-lakehouse/test/README.md
+gcloud storage ls gs://bigdata-subject-real-estate-lakehouse/test/
+```
+
+### 2. Lakehouse Data Layout on Cloud Storage
+
+Data is organized by lakehouse layer:
+
+```text
+gs://bigdata-subject-real-estate-lakehouse/
+  bronze/   # Raw crawl data
+  silver/   # Cleaned listing snapshot data
+  gold/     # Aggregated analytics tables
+```
+
+Google Cloud Storage is object storage. These are object prefixes, not physical folders.
+
+### 3. Download Data from Cloud Storage to Local
+
+Use this when a team member wants to pull shared data from the bucket before running analysis or ETL locally:
+
+Windows PowerShell:
+
+```powershell
+gcloud storage cp --recursive gs://bigdata-subject-real-estate-lakehouse/bronze data/bronze
+gcloud storage cp --recursive gs://bigdata-subject-real-estate-lakehouse/silver data/silver
+gcloud storage cp --recursive gs://bigdata-subject-real-estate-lakehouse/gold data/gold
+```
+
+Or run the helper script:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\gcs\sync_from_gcs.ps1
+```
+
+Linux/macOS Bash:
+
+```bash
+gcloud storage cp --recursive gs://bigdata-subject-real-estate-lakehouse/bronze data/bronze
+gcloud storage cp --recursive gs://bigdata-subject-real-estate-lakehouse/silver data/silver
+gcloud storage cp --recursive gs://bigdata-subject-real-estate-lakehouse/gold data/gold
+```
+
+Or run the helper script:
+
+```bash
+bash scripts/gcs/sync_from_gcs.sh
+```
+
+### 4. Upload Local Data to Cloud Storage
+
+Use this after crawling or running ETL locally:
+
+Windows PowerShell:
+
+```powershell
+gcloud storage cp --recursive data/bronze gs://bigdata-subject-real-estate-lakehouse/bronze
+gcloud storage cp --recursive data/silver gs://bigdata-subject-real-estate-lakehouse/silver
+gcloud storage cp --recursive data/gold gs://bigdata-subject-real-estate-lakehouse/gold
+```
+
+Or run the helper script:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\gcs\sync_to_gcs.ps1
+```
+
+Linux/macOS Bash:
+
+```bash
+gcloud storage cp --recursive data/bronze gs://bigdata-subject-real-estate-lakehouse/bronze
+gcloud storage cp --recursive data/silver gs://bigdata-subject-real-estate-lakehouse/silver
+gcloud storage cp --recursive data/gold gs://bigdata-subject-real-estate-lakehouse/gold
+```
+
+Or run the helper script:
+
+```bash
+bash scripts/gcs/sync_to_gcs.sh
+```
+
+### 5. Suggested Team Workflow
+
+Before working locally:
+
+Windows PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\gcs\sync_from_gcs.ps1
+```
+
+Linux/macOS Bash:
+
+```bash
+bash scripts/gcs/sync_from_gcs.sh
+```
+
+Run the local pipeline:
+
+Windows PowerShell:
+
+```powershell
+.\.venv\Scripts\python.exe src\crawl.py --config configs\crawl_targets_scale.yaml
+.\.venv\Scripts\python.exe src\bronze_to_silver.py --crawl-date 2026-04-25
+.\.venv\Scripts\python.exe src\silver_to_gold.py
+```
+
+Linux/macOS Bash:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python src/crawl.py --config configs/crawl_targets_scale.yaml
+python src/bronze_to_silver.py --crawl-date 2026-04-25
+python src/silver_to_gold.py
+```
+
+After producing new data:
+
+Windows PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\gcs\sync_to_gcs.ps1
+```
+
+Linux/macOS Bash:
+
+```bash
+bash scripts/gcs/sync_to_gcs.sh
+```
+
+### 6. Service Account Recommendation
+
+For the team/project pipeline, create a service account such as:
+
+```text
+real-estate-pipeline-sa
+```
+
+Recommended roles:
+
+```text
+Storage Object Viewer
+Storage Object Creator
+```
+
+For easier student project setup, `Storage Object Admin` is also acceptable, but it is broader than necessary.
+
+On a Google Cloud VM, attach the service account to the VM so code can access Cloud Storage without downloading a JSON key file.
+
+### 7. Current Project Flow
+
+```text
+Crawl -> Bronze -> Bronze-to-Silver -> Silver-to-Gold -> Sync to GCS
+```
 
 ## Design Docs
 
