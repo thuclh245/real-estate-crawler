@@ -67,6 +67,50 @@ Linux/macOS Bash:
 python -c "from crawl4ai import AsyncWebCrawler; print('OK')"
 ```
 
+### Spark Setup for Gold ETL (Linux VM)
+
+`src/silver_to_gold.py` requires PySpark and Java runtime.
+
+Install Python dependency:
+
+```bash
+source .venv/bin/activate
+python -m pip install pyspark py4j
+```
+
+Install Java runtime (Ubuntu):
+
+```bash
+sudo apt update
+sudo apt install -y openjdk-17-jre-headless
+```
+
+Set `JAVA_HOME` before running Gold ETL:
+
+```bash
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+export PATH="$JAVA_HOME/bin:$PATH"
+python3 src/silver_to_gold.py
+```
+
+Optional: persist `JAVA_HOME` for future sessions:
+
+```bash
+echo 'export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64' >> ~/.bashrc
+echo 'export PATH="$JAVA_HOME/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+Common errors and fix:
+
+```text
+ModuleNotFoundError: No module named 'py4j' or 'pyspark'
+  -> source .venv/bin/activate && python -m pip install pyspark py4j
+
+JAVA_HOME is not set / JAVA_GATEWAY_EXITED
+  -> install openjdk-17-jre-headless and export JAVA_HOME as above
+```
+
 ## Crawl Configuration
 
 The crawler reads configuration from:
@@ -540,7 +584,9 @@ python3 -m venv .venv
 source .venv/bin/activate
 python src/crawl.py --config configs/crawl_targets_scale.yaml
 python src/bronze_to_silver.py --crawl-date 2026-04-25
-python src/silver_to_gold.py
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+export PATH="$JAVA_HOME/bin:$PATH"
+python3 src/silver_to_gold.py
 ```
 
 After producing new data:

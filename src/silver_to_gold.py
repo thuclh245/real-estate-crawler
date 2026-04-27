@@ -5,6 +5,7 @@ import pandas as pd
 from py4j.protocol import Py4JJavaError
 from pyspark.sql import SparkSession, Window
 from pyspark.sql import functions as F
+from pyspark.sql import types as T
 
 SILVER_BASE_PATH = "data/silver"
 GOLD_BASE_PATH = "data/gold"
@@ -525,6 +526,14 @@ def write_gold_table(df, output_path: str, partition_cols=None):
         sample_dir.mkdir(parents=True, exist_ok=True)
         pdf.head(1000).to_csv(sample_dir / "part-00000.csv", index=False)
 
+    def cast_void_columns_to_string(input_df):
+        # Spark CSV cannot write NullType (shown as VOID in error messages).
+        result_df = input_df
+        for field in result_df.schema.fields:
+            if isinstance(field.dataType, T.NullType):
+                result_df = result_df.withColumn(field.name, F.col(field.name).cast("string"))
+        return result_df
+
     try:
         writer = df.write.mode("overwrite")
 
@@ -535,9 +544,9 @@ def write_gold_table(df, output_path: str, partition_cols=None):
 
         # Ghi thêm CSV sample để kiểm tra nhanh
         sample_path = output_path + "_csv_sample"
+        sample_df = cast_void_columns_to_string(df.limit(1000)).coalesce(1)
         (
-            df.limit(1000)
-            .coalesce(1)
+            sample_df
             .write
             .mode("overwrite")
             .option("header", True)
