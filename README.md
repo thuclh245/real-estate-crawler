@@ -34,6 +34,25 @@ python -m pip install -r requirements.txt
 crawl4ai-setup
 ```
 
+If you see this error on Ubuntu:
+
+```bash
+bash: .venv/bin/activate: No such file or directory
+```
+
+install venv support and recreate `.venv`:
+
+```bash
+sudo apt update
+sudo apt install -y python3.12-venv
+rm -rf .venv
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install -r requirements.txt
+crawl4ai-setup
+```
+
 Quick check:
 
 Windows PowerShell:
@@ -304,6 +323,8 @@ Pipeline sharing across team members
 
 After installing Google Cloud CLI, authenticate and select the project.
 
+If you are connected to a Linux VM via VS Code SSH, use no-browser login flow.
+
 Windows PowerShell:
 
 ```powershell
@@ -317,6 +338,15 @@ Linux/macOS Bash:
 gcloud auth login
 gcloud config set project bigdata-subject
 ```
+
+Linux/macOS Bash (VS Code SSH / headless VM):
+
+```bash
+gcloud auth login --no-launch-browser
+gcloud config set project bigdata-subject
+```
+
+When prompted, copy the URL from terminal, open it on your local browser, sign in with an account that has access to `bigdata-subject`, then paste the authorization code back into the VM terminal.
 
 For local development with Google SDK libraries, also run:
 
@@ -330,6 +360,20 @@ Linux/macOS Bash:
 
 ```bash
 gcloud auth application-default login
+```
+
+Linux/macOS Bash (VS Code SSH / headless VM):
+
+```bash
+gcloud auth application-default login --no-launch-browser
+```
+
+Check current auth/project on VM:
+
+```bash
+gcloud auth list
+gcloud config get-value project
+gcloud auth application-default print-access-token | head -c 20 && echo "..."
 ```
 
 Check access:
@@ -347,6 +391,15 @@ Linux/macOS Bash:
 ```bash
 gcloud projects list
 gcloud storage buckets list
+gcloud storage ls gs://bigdata-subject-real-estate-lakehouse
+```
+
+If access is denied on VM service account, run user login again and verify active account:
+
+```bash
+gcloud auth login --no-launch-browser
+gcloud config set account <your_google_account>
+gcloud config set project bigdata-subject
 gcloud storage ls gs://bigdata-subject-real-estate-lakehouse
 ```
 
@@ -400,10 +453,21 @@ powershell -ExecutionPolicy Bypass -File scripts\gcs\sync_from_gcs.ps1
 Linux/macOS Bash:
 
 ```bash
-gcloud storage cp --recursive gs://bigdata-subject-real-estate-lakehouse/bronze data/bronze
-gcloud storage cp --recursive gs://bigdata-subject-real-estate-lakehouse/silver data/silver
-gcloud storage cp --recursive gs://bigdata-subject-real-estate-lakehouse/gold data/gold
+mkdir -p data/bronze data/silver data/gold
+gcloud storage cp --recursive gs://bigdata-subject-real-estate-lakehouse/bronze/* data/bronze/
+gcloud storage cp --recursive gs://bigdata-subject-real-estate-lakehouse/silver/* data/silver/
+gcloud storage cp --recursive gs://bigdata-subject-real-estate-lakehouse/gold/* data/gold/
 ```
+
+Quick local check after sync:
+
+```bash
+find data/bronze -maxdepth 3 -type d | head
+find data/silver -maxdepth 3 -type d | head
+find data/gold -maxdepth 3 -type d | head
+```
+
+If you see `Destination URL must name an existing directory`, create directories first with `mkdir -p data/bronze data/silver data/gold`.
 
 Or run the helper script:
 
