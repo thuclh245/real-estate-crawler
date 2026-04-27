@@ -326,6 +326,69 @@ def add_price_change_tracking(snapshot_df):
 
     return snapshot_df
 
+def add_info_change_tracking(snapshot_df):
+    """
+    So sánh các thông tin cơ bản của cùng dedup_key theo thời gian.
+    """
+
+    window_spec = Window.partitionBy("dedup_key").orderBy("snapshot_date")
+
+    tracked_fields = [
+        "price_vnd",
+        "area_m2",
+        "title_raw",
+        "description_raw",
+        "district_norm",
+        "property_type_group",
+    ]
+
+    df = snapshot_df
+    change_expressions = []
+
+    for field_name in tracked_fields:
+        if field_name not in df.columns:
+            continue
+
+        previous_col = f"previous_{field_name}"
+        changed_col = f"is_{field_name}_changed"
+
+        df = df.withColumn(previous_col, F.lag(F.col(field_name)).over(window_spec))
+        df = df.withColumn(
+            changed_col,
+            F.when(
+                F.col(previous_col).isNotNull()
+                & F.col(field_name).isNotNull()
+                & (F.col(previous_col).cast("string") != F.col(field_name).cast("string")),
+                F.lit(True),
+            ).otherwise(F.lit(False)),
+        )
+
+        change_expressions.append(
+            F.when(F.col(changed_col), F.lit(field_name)).otherwise(F.lit(None))
+        )
+
+    if change_expressions:
+        df = df.withColumn(
+            "changed_fields",
+            F.concat_ws(",", *change_expressions),
+        )
+        df = df.withColumn("is_info_changed", F.length(F.col("changed_fields")) > 0)
+    else:
+        df = df.withColumn("changed_fields", F.lit(""))
+        df = df.withColumn("is_info_changed", F.lit(False))
+
+    df = df.withColumn(
+        "snapshot_status",
+        F.when(
+            F.col("is_new_listing").eqNullSafe(F.lit(False))
+            & F.col("is_info_changed")
+            & F.col("is_price_changed").eqNullSafe(F.lit(False)),
+            F.lit("changed_info"),
+        ).otherwise(F.col("snapshot_status")),
+    )
+
+    return df
+
 def add_duplicate_flags(df):
     """
     Tính duplicate trong cùng một crawl_date.
@@ -646,6 +709,9 @@ def main():
 
     print("=== ADD PRICE CHANGE TRACKING ===")
     snapshot_df = add_price_change_tracking(snapshot_df)
+
+    print("=== ADD INFO CHANGE TRACKING ===")
+    snapshot_df = add_info_change_tracking(snapshot_df)
 
     print("=== BUILD REMOVED LISTINGS ===")
     removed_df = build_removed_listings(daily_deduped_df)

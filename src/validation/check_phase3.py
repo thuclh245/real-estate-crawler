@@ -8,11 +8,26 @@ GOLD_BASE_PATH = Path("data/gold")
 REQUIRED_TABLES = {
     "gold_current_listings": {
         "min_count": 1,
-        "columns": ["dedup_key", "snapshot_date", "listing_url", "price_vnd", "area_m2"],
+        "columns": [
+            "dedup_key",
+            "snapshot_date",
+            "listing_url",
+            "price_vnd",
+            "area_m2",
+            "is_info_changed",
+            "changed_fields",
+        ],
     },
     "gold_listing_snapshots": {
         "min_count": 1,
-        "columns": ["dedup_key", "snapshot_date", "snapshot_status", "is_new_listing"],
+        "columns": [
+            "dedup_key",
+            "snapshot_date",
+            "snapshot_status",
+            "is_new_listing",
+            "is_info_changed",
+            "changed_fields",
+        ],
     },
     "gold_market_by_district_daily": {
         "min_count": 1,
@@ -28,7 +43,20 @@ REQUIRED_TABLES = {
     },
     "gold_removed_listings": {
         "min_count": 0,
-        "columns": ["dedup_key", "snapshot_date", "snapshot_status", "is_removed_listing"],
+        "columns": [
+            "dedup_key",
+            "snapshot_date",
+            "last_seen_before_removed",
+            "listing_id",
+            "listing_url",
+            "title_raw",
+            "price_vnd",
+            "area_m2",
+            "district_norm",
+            "property_type_group",
+            "snapshot_status",
+            "is_removed_listing",
+        ],
     },
 }
 

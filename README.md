@@ -657,6 +657,74 @@ data/gold/gold_data_quality_daily/
 data/gold/gold_removed_listings/
 ```
 
+Important Gold fields:
+
+```text
+first_seen_date
+last_seen_date
+active_days
+snapshot_status
+is_price_changed
+previous_price_vnd
+current_price_vnd
+price_change_vnd
+price_change_pct
+is_info_changed
+changed_fields
+```
+
+`snapshot_status` can be:
+
+```text
+new             # First time the listing appears in the snapshot data
+active          # Listing still exists and no tracked change is detected
+changed_price   # price_vnd changed compared with the previous snapshot
+changed_info    # non-price listing information changed
+removed         # listing existed in the previous snapshot but not in the next one
+```
+
+`changed_fields` records which tracked fields changed across snapshots, for example:
+
+```text
+price_vnd,area_m2
+title_raw,district_norm
+```
+
+Tracked fields for info change detection:
+
+```text
+price_vnd
+area_m2
+title_raw
+description_raw
+district_norm
+property_type_group
+```
+
+`gold_removed_listings` keeps the last known listing information before the listing disappeared:
+
+```text
+dedup_key
+snapshot_date
+last_seen_before_removed
+listing_id
+listing_url
+title_raw
+price_vnd
+area_m2
+district_norm
+property_type_group
+snapshot_status
+```
+
+If code changes add new Gold columns such as `is_info_changed` or `changed_fields`, regenerate Gold on Linux/VM before validating:
+
+```bash
+export PYTHONPATH=src
+python -m transform.silver_to_gold
+python -m validation.check_phase3
+```
+
 `validation.check_phase3` is the official Phase 3 validation checklist. If it prints `PASS: Phase 3 validation checklist`, the Gold layer is ready for report/dashboard use.
 
 The GCS sync scripts use `gcloud storage rsync --exclude=".*\.crc$"` so Spark checksum files are not uploaded or downloaded.
