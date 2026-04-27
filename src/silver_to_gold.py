@@ -1,8 +1,7 @@
+import json
+from datetime import datetime
 from pathlib import Path
-import shutil
 
-import pandas as pd
-from py4j.protocol import Py4JJavaError
 from pyspark.sql import SparkSession, Window
 from pyspark.sql import functions as F
 from pyspark.sql import types as T
@@ -10,20 +9,28 @@ from pyspark.sql import types as T
 SILVER_BASE_PATH = "data/silver"
 GOLD_BASE_PATH = "data/gold"
 
+GOLD_TABLES_CREATED = [
+    "gold_current_listings",
+    "gold_listing_snapshots",
+    "gold_market_by_district_daily",
+    "gold_market_by_property_type_daily",
+    "gold_data_quality_daily",
+    "gold_removed_listings",
+]
+
 
 def log_step(message: str) -> None:
     print(f"[silver_to_gold] {message}")
 
 def create_spark() -> SparkSession:
+    warehouse_dir = Path("spark-warehouse").resolve().as_uri()
+
     return (
         SparkSession.builder
         .appName("SilverToGoldRealEstate")
         .master("local[*]")
         .config("spark.sql.session.timeZone", "Asia/Ho_Chi_Minh")
-        .config("spark.hadoop.hadoop.home.dir", r"C:\hadoop")
-        .config("spark.hadoop.fs.permissions.enabled", "false")
-        .config("spark.hadoop.dfs.permissions.enabled", "false")
-        .config("spark.sql.warehouse.dir", "file:///E:/Viscode/real-estate-crawler/spark-warehouse")
+        .config("spark.sql.warehouse.dir", warehouse_dir)
         .getOrCreate()
     )
 
@@ -358,6 +365,7 @@ def build_removed_listings(daily_deduped_df):
         return (
             daily_deduped_df.limit(0)
             .withColumn("snapshot_date", F.lit(None).cast("string"))
+            .withColumn("last_seen_before_removed", F.lit(None).cast("string"))
             .withColumn("snapshot_status", F.lit("removed"))
             .withColumn("is_removed_listing", F.lit(True))
         )
@@ -371,8 +379,6 @@ def build_removed_listings(daily_deduped_df):
         prev_df = (
             daily_deduped_df
             .filter(F.col("crawl_date") == prev_date)
-            .select("dedup_key")
-            .distinct()
         )
 
         curr_df = (
@@ -385,6 +391,7 @@ def build_removed_listings(daily_deduped_df):
         removed_keys = (
             prev_df.join(curr_df, on="dedup_key", how="left_anti")
             .withColumn("snapshot_date", F.lit(curr_date))
+            .withColumn("last_seen_before_removed", F.lit(prev_date))
             .withColumn("snapshot_status", F.lit("removed"))
             .withColumn("is_removed_listing", F.lit(True))
         )
@@ -395,6 +402,7 @@ def build_removed_listings(daily_deduped_df):
         return (
             daily_deduped_df.limit(0)
             .withColumn("snapshot_date", F.lit(None).cast("string"))
+            .withColumn("last_seen_before_removed", F.lit(None).cast("string"))
             .withColumn("snapshot_status", F.lit("removed"))
             .withColumn("is_removed_listing", F.lit(True))
         )
@@ -445,6 +453,29 @@ def build_gold_market_by_district_daily(snapshot_df):
 
     return result
 
+def build_gold_market_by_property_type_daily(snapshot_df):
+    """
+    Aggregation theo ngày + loại bất động sản.
+    """
+
+    df = snapshot_df.filter(F.col("snapshot_status") != "removed")
+
+    result = (
+        df.groupBy("snapshot_date", "property_type_group")
+        .agg(
+            F.count("*").alias("listing_count"),
+            F.expr("percentile_approx(price_vnd, 0.5)").alias("median_price_vnd"),
+            F.avg("price_vnd").alias("avg_price_vnd"),
+            F.expr("percentile_approx(area_m2, 0.5)").alias("median_area_m2"),
+            F.expr("percentile_approx(unit_price_vnd_m2, 0.5)").alias("median_unit_price_vnd_m2"),
+            F.sum(F.when(F.col("price_unit") == "negotiable", 1).otherwise(0)).alias("negotiable_price_count"),
+            F.sum(F.when(F.col("snapshot_status") == "new", 1).otherwise(0)).alias("new_listing_count"),
+            F.sum(F.when(F.col("is_price_changed"), 1).otherwise(0)).alias("price_changed_count"),
+        )
+    )
+
+    return result
+
 def build_gold_data_quality_daily(df_before_dedup, df_after_dedup):
     """
     Tạo bảng data quality daily.
@@ -485,47 +516,6 @@ def write_gold_table(df, output_path: str, partition_cols=None):
     """
     Ghi Gold table ra Parquet.
     """
-    def is_winutils_crash(error: Exception) -> bool:
-        error_text = str(error)
-        return (
-            "ExitCodeException exitCode=-1073741701" in error_text
-            and "RawLocalFileSystem.setPermission" in error_text
-        )
-
-    def to_partition_value(value) -> str:
-        if value is None or (isinstance(value, float) and pd.isna(value)):
-            return "__HIVE_DEFAULT_PARTITION__"
-        return str(value)
-
-    def write_with_pandas() -> None:
-        pdf = df.toPandas()
-        output_dir = Path(output_path)
-
-        if output_dir.exists():
-            shutil.rmtree(output_dir)
-        output_dir.mkdir(parents=True, exist_ok=True)
-
-        if partition_cols:
-            grouped = pdf.groupby(partition_cols, dropna=False, sort=False)
-            for keys, group_df in grouped:
-                if not isinstance(keys, tuple):
-                    keys = (keys,)
-
-                partition_dir = output_dir
-                for col, value in zip(partition_cols, keys):
-                    partition_dir = partition_dir / f"{col}={to_partition_value(value)}"
-
-                partition_dir.mkdir(parents=True, exist_ok=True)
-                group_df.to_parquet(partition_dir / "part-00000.parquet", index=False)
-        else:
-            pdf.to_parquet(output_dir / "part-00000.parquet", index=False)
-
-        sample_dir = Path(output_path + "_csv_sample")
-        if sample_dir.exists():
-            shutil.rmtree(sample_dir)
-        sample_dir.mkdir(parents=True, exist_ok=True)
-        pdf.head(1000).to_csv(sample_dir / "part-00000.csv", index=False)
-
     def cast_void_columns_to_string(input_df):
         # Spark CSV cannot write NullType (shown as VOID in error messages).
         result_df = input_df
@@ -534,33 +524,89 @@ def write_gold_table(df, output_path: str, partition_cols=None):
                 result_df = result_df.withColumn(field.name, F.col(field.name).cast("string"))
         return result_df
 
-    try:
-        writer = df.write.mode("overwrite")
+    writer = df.write.mode("overwrite")
 
-        if partition_cols:
-            writer = writer.partitionBy(*partition_cols)
+    if partition_cols:
+        writer = writer.partitionBy(*partition_cols)
 
-        writer.parquet(output_path)
+    writer.parquet(output_path)
 
         # Ghi thêm CSV sample để kiểm tra nhanh
-        sample_path = output_path + "_csv_sample"
-        sample_df = cast_void_columns_to_string(df.limit(1000)).coalesce(1)
-        (
-            sample_df
-            .write
-            .mode("overwrite")
-            .option("header", True)
-            .csv(sample_path)
-        )
-    except Py4JJavaError as error:
-        if not is_winutils_crash(error):
-            raise
+    sample_path = output_path + "_csv_sample"
+    sample_df = cast_void_columns_to_string(df.limit(1000)).coalesce(1)
+    (
+        sample_df
+        .write
+        .mode("overwrite")
+        .option("header", True)
+        .csv(sample_path)
+    )
+def write_phase3_summary(
+    silver_df,
+    snapshot_df,
+    gold_current_df,
+    gold_quality_df,
+    output_path: str,
+    gold_tables_created: list[str],
+) -> None:
+    quality_totals = gold_quality_df.agg(
+        F.sum("total_records").alias("total_silver_records"),
+        F.sum("parse_success_count").alias("parse_success_count"),
+        F.sum("missing_price_count").alias("missing_price_count"),
+        F.sum("missing_area_count").alias("missing_area_count"),
+        F.sum("missing_location_count").alias("missing_location_count"),
+        F.sum("duplicate_record_count").alias("duplicate_record_count"),
+    ).collect()[0]
 
-        log_step(
-            "Spark parquet write failed because winutils crashed on Windows permission call; "
-            "fallback to pandas parquet writer"
-        )
-        write_with_pandas()
+    total_silver_records = int(quality_totals["total_silver_records"] or 0)
+    duplicate_record_count = int(quality_totals["duplicate_record_count"] or 0)
+
+    snapshot_dates = [
+        row["snapshot_date"]
+        for row in snapshot_df.select("snapshot_date").distinct().orderBy("snapshot_date").collect()
+    ]
+
+    summary = {
+        "total_silver_records": total_silver_records,
+        "total_current_listings": int(gold_current_df.count()),
+        "duplicate_record_count": duplicate_record_count,
+        "duplicate_rate": (
+            duplicate_record_count / total_silver_records
+            if total_silver_records
+            else 0.0
+        ),
+        "parse_success_rate": (
+            int(quality_totals["parse_success_count"] or 0) / total_silver_records
+            if total_silver_records
+            else 0.0
+        ),
+        "missing_price_rate": (
+            int(quality_totals["missing_price_count"] or 0) / total_silver_records
+            if total_silver_records
+            else 0.0
+        ),
+        "missing_area_rate": (
+            int(quality_totals["missing_area_count"] or 0) / total_silver_records
+            if total_silver_records
+            else 0.0
+        ),
+        "missing_location_rate": (
+            int(quality_totals["missing_location_count"] or 0) / total_silver_records
+            if total_silver_records
+            else 0.0
+        ),
+        "snapshot_dates": snapshot_dates,
+        "gold_tables_created": gold_tables_created,
+        "created_at": datetime.now().isoformat(timespec="seconds"),
+    }
+
+    output_file = Path(output_path)
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    output_file.write_text(
+        json.dumps(summary, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    log_step(f"Phase 3 summary written to: {output_file}")
 
 def main():
     spark = create_spark()
@@ -619,7 +665,17 @@ def main():
     print("=== BUILD GOLD TABLES ===")
     gold_current_df = build_gold_current_listings(snapshot_df)
     gold_market_district_df = build_gold_market_by_district_daily(snapshot_df)
+    gold_market_property_type_df = build_gold_market_by_property_type_daily(snapshot_df)
     gold_quality_df = build_gold_data_quality_daily(silver_df, daily_deduped_df)
+
+    gold_tables_created = [
+        "gold_current_listings",
+        "gold_listing_snapshots",
+        "gold_market_by_district_daily",
+        "gold_market_by_property_type_daily",
+        "gold_data_quality_daily",
+        "gold_removed_listings",
+    ]
 
     print("=== WRITE GOLD TABLES ===")
     write_gold_table(
@@ -640,6 +696,12 @@ def main():
     )
 
     write_gold_table(
+        gold_market_property_type_df,
+        f"{GOLD_BASE_PATH}/gold_market_by_property_type_daily",
+        partition_cols=["snapshot_date"]
+    )
+
+    write_gold_table(
         gold_quality_df,
         f"{GOLD_BASE_PATH}/gold_data_quality_daily",
         partition_cols=["crawl_date"]
@@ -649,6 +711,16 @@ def main():
         removed_df,
         f"{GOLD_BASE_PATH}/gold_removed_listings",
         partition_cols=["snapshot_date"]
+    )
+
+    print("=== WRITE PHASE 3 SUMMARY ===")
+    write_phase3_summary(
+        silver_df=silver_df,
+        snapshot_df=snapshot_df,
+        gold_current_df=gold_current_df,
+        gold_quality_df=gold_quality_df,
+        output_path=f"{GOLD_BASE_PATH}/phase3_summary.json",
+        gold_tables_created=gold_tables_created,
     )
 
     print("=== DONE PHASE 3 ===")
