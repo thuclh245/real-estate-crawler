@@ -7,7 +7,7 @@ import sys
 from datetime import datetime
 from urllib.parse import urljoin
 
-from crawl_audit import (
+from crawler.crawl_audit import (
     audit_location,
     classify_category_match,
     print_error,
@@ -16,7 +16,7 @@ from crawl_audit import (
     validate_seed_url,
     write_audit_sample_csv,
 )
-from crawl_config import (
+from crawler.crawl_config import (
     expand_targets,
     get_target_city,
     get_target_location_label,
@@ -24,11 +24,11 @@ from crawl_config import (
     get_target_location_slug,
     load_config,
 )
-from fetcher import fetch_with_retry
-from parser import html_to_text, extract_phase1_stub_fields
-from storage import save_text_file, save_json_file, append_jsonl
-from url_builder import build_seed_url
-from utils import now_utc_iso, today_str
+from crawler.fetcher import fetch_with_retry
+from crawler.parser import html_to_text, extract_phase1_stub_fields
+from common.storage import save_text_file, save_json_file, append_jsonl
+from crawler.url_builder import build_seed_url
+from common.utils import now_utc_iso, today_str
 
 
 CRAWLER_VERSION = "v0.1"

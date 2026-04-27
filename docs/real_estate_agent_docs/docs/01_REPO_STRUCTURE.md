@@ -8,20 +8,27 @@ real-estate-crawler/
     crawl_targets.yaml
 
   src/
-    crawl.py
-    fetcher.py
-    url_builder.py
-    parser.py
-    storage.py
-    logger.py
-    utils.py
-
-  etl/
-    bronze_to_silver.py
-    silver_dedup.py
-    silver_to_gold_current.py
-    silver_to_gold_snapshot_fact.py
-    gold_aggregations.py
+    common/
+      storage.py
+      logger.py
+      utils.py
+    crawler/
+      crawl.py
+      fetcher.py
+      url_builder.py
+      parser.py
+      crawl_config.py
+      crawl_audit.py
+      parsing/
+        batdongsan_parser.py
+        normalizers.py
+        quality_checks.py
+    transform/
+      bronze_to_silver.py
+      silver_to_gold.py
+    validation/
+      check_gold.py
+      check_phase3.py
 
   dashboard/
     app.py
@@ -51,7 +58,7 @@ real-estate-crawler/
 
 ## Module responsibilities
 
-### `src/crawl.py`
+### `src/crawler/crawl.py`
 
 Main crawler orchestration:
 
@@ -63,7 +70,7 @@ Main crawler orchestration:
 - save raw HTML/text/metadata
 - write crawl log and summary
 
-### `src/fetcher.py`
+### `src/crawler/fetcher.py`
 
 Fetch adapter layer:
 
@@ -71,11 +78,11 @@ Fetch adapter layer:
 - `fetch_mode: crawl4ai`
 - return common `FetchResult`
 
-### `src/url_builder.py`
+### `src/crawler/url_builder.py`
 
 Build list page URLs from category + district + page number. Should support `seed_url` override from config.
 
-### `src/parser.py`
+### `src/crawler/parser.py`
 
 Phase 1: keep minimal.
 
@@ -84,7 +91,7 @@ Phase 1: keep minimal.
 
 Phase 3: add proper parse functions.
 
-### `src/storage.py`
+### `src/common/storage.py`
 
 Save/read local files:
 
@@ -93,7 +100,7 @@ Save/read local files:
 - metadata JSON
 - JSONL logs
 
-### `etl/`
+### `src/transform/`
 
 Spark batch jobs. Each file should be independently runnable and rerunnable by `crawl_date`.
 

@@ -69,7 +69,7 @@ python -c "from crawl4ai import AsyncWebCrawler; print('OK')"
 
 ### Spark Setup for Gold ETL (Linux VM)
 
-`src/silver_to_gold.py` requires PySpark and Java runtime.
+`transform.silver_to_gold` requires PySpark and Java runtime.
 
 Install Python dependency:
 
@@ -88,9 +88,10 @@ sudo apt install -y openjdk-17-jre-headless
 Set `JAVA_HOME` before running Gold ETL:
 
 ```bash
+export PYTHONPATH=src
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 export PATH="$JAVA_HOME/bin:$PATH"
-python3 src/silver_to_gold.py
+python3 -m transform.silver_to_gold
 ```
 
 Optional: persist `JAVA_HOME` for future sessions:
@@ -153,14 +154,16 @@ Windows PowerShell:
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
-python src\crawl.py
+$env:PYTHONPATH = "src"
+python -m crawler.crawl
 ```
 
 Linux/macOS Bash:
 
 ```bash
 source .venv/bin/activate
-python src/crawl.py
+export PYTHONPATH=src
+python -m crawler.crawl
 ```
 
 Run with a specific config:
@@ -168,19 +171,21 @@ Run with a specific config:
 Windows PowerShell:
 
 ```powershell
-python src\crawl.py --config configs\crawl_targets.yaml
-python src\crawl.py --config configs\crawl_targets_scale.yaml
-python src\crawl.py --config configs\team\priority_a_ha_noi.yaml
-python src\crawl.py --config configs\team\priority_a_ha_noi_expand_01.yaml
+$env:PYTHONPATH = "src"
+python -m crawler.crawl --config configs\crawl_targets.yaml
+python -m crawler.crawl --config configs\crawl_targets_scale.yaml
+python -m crawler.crawl --config configs\team\priority_a_ha_noi.yaml
+python -m crawler.crawl --config configs\team\priority_a_ha_noi_expand_01.yaml
 ```
 
 Linux/macOS Bash:
 
 ```bash
-python src/crawl.py --config configs/crawl_targets.yaml
-python src/crawl.py --config configs/crawl_targets_scale.yaml
-python src/crawl.py --config configs/team/priority_a_ha_noi.yaml
-python src/crawl.py --config configs/team/priority_a_ha_noi_expand_01.yaml
+export PYTHONPATH=src
+python -m crawler.crawl --config configs/crawl_targets.yaml
+python -m crawler.crawl --config configs/crawl_targets_scale.yaml
+python -m crawler.crawl --config configs/team/priority_a_ha_noi.yaml
+python -m crawler.crawl --config configs/team/priority_a_ha_noi_expand_01.yaml
 ```
 
 Use `.\.venv\Scripts\python.exe` instead of `python` if PowerShell is not using the project virtual environment. On Linux/macOS, use `.venv/bin/python`.
@@ -572,8 +577,9 @@ Run the local pipeline:
 Windows PowerShell:
 
 ```powershell
-.\.venv\Scripts\python.exe src\crawl.py --config configs\crawl_targets_scale.yaml
-.\.venv\Scripts\python.exe src\bronze_to_silver.py --crawl-date 2026-04-25
+$env:PYTHONPATH = "src"
+.\.venv\Scripts\python.exe -m crawler.crawl --config configs\crawl_targets_scale.yaml
+.\.venv\Scripts\python.exe -m transform.bronze_to_silver --bronze-dir data\bronze\source=batdongsan\crawl_date=2026-04-25\crawl_id=<crawl_id> --silver-dir data\silver\source=batdongsan\crawl_date=2026-04-25\crawl_id=<crawl_id>
 ```
 
 Phase 3 Gold should be run on Linux/VM because it uses Spark.
@@ -583,12 +589,13 @@ Linux/macOS Bash:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python src/crawl.py --config configs/crawl_targets_scale.yaml
-python src/bronze_to_silver.py --crawl-date 2026-04-25
+export PYTHONPATH=src
+python -m crawler.crawl --config configs/crawl_targets_scale.yaml
+python -m transform.bronze_to_silver --bronze-dir data/bronze/source=batdongsan/crawl_date=2026-04-25/crawl_id=<crawl_id> --silver-dir data/silver/source=batdongsan/crawl_date=2026-04-25/crawl_id=<crawl_id>
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 export PATH="$JAVA_HOME/bin:$PATH"
-python src/silver_to_gold.py
-python src/check_phase3.py
+python -m transform.silver_to_gold
+python -m validation.check_phase3
 ```
 
 After producing new data:
@@ -631,8 +638,9 @@ Run Phase 3:
 Linux/macOS Bash:
 
 ```bash
-python src/silver_to_gold.py
-python src/check_phase3.py
+export PYTHONPATH=src
+python -m transform.silver_to_gold
+python -m validation.check_phase3
 ```
 
 Phase 3 is Spark-based. Prefer running this step on Linux/VM instead of Windows.
@@ -649,7 +657,7 @@ data/gold/gold_data_quality_daily/
 data/gold/gold_removed_listings/
 ```
 
-`src/check_phase3.py` is the official Phase 3 validation checklist. If it prints `PASS: Phase 3 validation checklist`, the Gold layer is ready for report/dashboard use.
+`validation.check_phase3` is the official Phase 3 validation checklist. If it prints `PASS: Phase 3 validation checklist`, the Gold layer is ready for report/dashboard use.
 
 The GCS sync scripts use `gcloud storage rsync --exclude=".*\.crc$"` so Spark checksum files are not uploaded or downloaded.
 

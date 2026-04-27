@@ -2,7 +2,7 @@ import re
 from typing import Dict, Any, Optional
 from datetime import datetime, timezone
 
-from parsing.normalizers import (
+from crawler.parsing.normalizers import (
     clean_text,
     normalize_price,
     normalize_area,

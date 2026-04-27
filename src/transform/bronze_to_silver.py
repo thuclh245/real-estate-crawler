@@ -5,8 +5,8 @@ from datetime import datetime, timezone
 
 import pandas as pd
 
-from parsing.batdongsan_parser import parse_listing
-from parsing.quality_checks import apply_quality_flags
+from crawler.parsing.batdongsan_parser import parse_listing
+from crawler.parsing.quality_checks import apply_quality_flags
 
 
 def now_utc_iso() -> str:
