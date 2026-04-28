@@ -481,6 +481,8 @@ gs://bigdata-subject-real-estate-lakehouse/
 
 Google Cloud Storage is object storage. These are object prefixes, not physical folders.
 
+For new crawl runs, prefer appending only the new `crawl_date` / `crawl_id` folder to GCS instead of syncing the whole tree again. Use full-tree `rsync` only when you intentionally want to mirror local `data/` to the bucket.
+
 ### 3. Download Data from Cloud Storage to Local
 
 Use this when a team member wants to pull shared data from the bucket before running analysis or ETL locally:
@@ -528,6 +530,10 @@ bash scripts/gcs/sync_from_gcs.sh
 
 Use this after crawling or running ETL locally:
 
+Full-tree sync mode:
+
+This is incremental and transfers only new or changed objects, but it still scans the full local tree.
+
 Windows PowerShell:
 
 ```powershell
@@ -555,6 +561,31 @@ Or run the helper script:
 ```bash
 bash scripts/gcs/sync_to_gcs.sh
 ```
+
+Append-only mode for a new crawl:
+
+Use this when you only want to push the newest Bronze/Silver crawl folders into GCS without re-syncing older runs.
+
+You can also use the helper script with environment variables:
+
+```bash
+export GCS_BUCKET=gs://bigdata-subject-real-estate-lakehouse
+export CRAWL_DATE=YYYY-MM-DD
+export CRAWL_ID=<crawl_id>
+
+bash scripts/gcs/sync_to_gcs.sh
+```
+
+Or upload the crawl folders directly:
+
+```bash
+export GCS_BUCKET=gs://bigdata-subject-real-estate-lakehouse
+
+gcloud storage cp -r data/bronze/source=batdongsan/crawl_date=YYYY-MM-DD/crawl_id=<crawl_id> "$GCS_BUCKET/bronze/source=batdongsan/crawl_date=YYYY-MM-DD/"
+gcloud storage cp -r data/silver/source=batdongsan/crawl_date=YYYY-MM-DD/crawl_id=<crawl_id> "$GCS_BUCKET/silver/source=batdongsan/crawl_date=YYYY-MM-DD/"
+```
+
+If you need to upload Gold outputs too, keep in mind Gold is derived analytics data and may be regenerated per run. In that case, the script still uses incremental `rsync` for `data/gold`, so only new or changed Gold objects are transferred.
 
 ### 5. Suggested Team Workflow
 
@@ -727,7 +758,7 @@ python -m validation.check_phase3
 
 `validation.check_phase3` is the official Phase 3 validation checklist. If it prints `PASS: Phase 3 validation checklist`, the Gold layer is ready for report/dashboard use.
 
-The GCS sync scripts use `gcloud storage rsync --exclude=".*\.crc$"` so Spark checksum files are not uploaded or downloaded.
+The GCS sync scripts use `gcloud storage rsync --exclude=".*\.crc$"`, so Spark checksum files are not uploaded or downloaded. That mode is incremental, not a destructive mirror, but it is still different from append-only upload of a single new crawl folder.
 
 ### 8. Phase 4 Dashboard
 
