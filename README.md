@@ -792,7 +792,80 @@ data/gold/gold_removed_listings/
 
 Use dashboard screenshots in the report/demo after running Phase 3 and validating Gold.
 
-### 9. Current Project Flow
+### 9. Phase 5 Pipeline Orchestration
+
+Phase 5 focuses on orchestration and Spark runtime validation. The canonical Spark Gold ETL is implemented in:
+
+```text
+src/transform/silver_to_gold.py
+```
+
+Do not create a duplicate `silver_to_gold_spark.py` unless the transformation logic is genuinely different. The canonical validation remains:
+
+```text
+src/validation/check_phase3.py
+```
+
+The Linux pipeline script now runs the full daily flow in order:
+
+```text
+1. Crawl Bronze
+2. Bronze to Silver
+3. Silver to Gold Spark
+4. Validate Gold
+5. Sync Bronze/Silver/Gold/Logs to GCS
+```
+
+Linux / Google Cloud VM is the official Spark runtime:
+
+```bash
+chmod +x scripts/run_phase5_pipeline_linux.sh
+./scripts/run_phase5_pipeline_linux.sh
+```
+
+Windows helper script:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\run_phase5_pipeline_windows.ps1
+```
+
+The script automatically:
+
+```text
+- uses configs/crawl_targets.yaml unless CRAWL_CONFIG is overridden
+- finds the latest crawl_id under data/bronze/source=batdongsan/crawl_date=YYYY-MM-DD/
+- writes Silver output to the matching crawl_id directory
+- syncs data/bronze, data/silver, data/gold, and data/logs to the GCS bucket defined by GCS_BUCKET
+```
+
+Phase 5 writes execution logs to:
+
+```text
+data/logs/daily_pipeline/
+```
+
+Phase 5 completion checklist:
+
+```text
+[ ] Run pipeline on Linux / Google Cloud VM
+[ ] Crawl Bronze completes and creates a crawl_id folder
+[ ] Bronze-to-Silver completes for the latest crawl_id
+[ ] Spark Silver-to-Gold job completes
+[ ] Gold Parquet tables are created or updated
+[ ] validation.check_phase3 passes
+[ ] Execution log exists under data/logs/daily_pipeline
+[ ] Bronze/Silver/Gold/Logs are synced to GCS
+[ ] Dashboard reads Gold tables
+[ ] Screenshots are captured for report/demo
+```
+
+Report wording:
+
+```text
+Phase 5 focuses on pipeline orchestration and Spark runtime validation. Since the Gold transformation module has already been implemented using PySpark, this phase does not duplicate the transformation logic. Instead, it standardizes the execution workflow on a Linux-based Google Cloud VM, runs the daily crawl-to-Gold batch, validates the generated Gold tables, syncs outputs to GCS, and stores execution logs for reproducibility and auditing.
+```
+
+### 10. Current Project Flow
 
 ```text
 Crawl -> Bronze -> Bronze-to-Silver -> Silver-to-Gold -> Dashboard -> Sync to GCS
