@@ -4,14 +4,54 @@ set -euo pipefail
 PROJECT_DIR="${PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 BUCKET="${GCS_BUCKET:-gs://bigdata-subject-real-estate-lakehouse}"
 CRAWL_CONFIG="${CRAWL_CONFIG:-configs/crawl_targets.yaml}"
+CRAWL_CONFIGS="${CRAWL_CONFIGS:-configs/team/priority_a_ha_noi.yaml,configs/team/priority_a_ha_noi_expand_01.yaml}"
 CRAWL_DATE="${CRAWL_DATE:-$(date +%Y-%m-%d)}"
 SYNC_TO_GCS="${SYNC_TO_GCS:-true}"
+PIPELINE_MODE="${PIPELINE_MODE:-full}"
 
 RUN_ID="daily_$(date +%Y%m%d_%H%M%S)"
 LOG_DIR="$PROJECT_DIR/data/logs/daily_pipeline"
 LOG_FILE="$LOG_DIR/$RUN_ID.log"
 BRONZE_DATE_DIR="$PROJECT_DIR/data/bronze/source=batdongsan/crawl_date=$CRAWL_DATE"
 SILVER_DATE_DIR="$PROJECT_DIR/data/silver/source=batdongsan/crawl_date=$CRAWL_DATE"
+
+run_crawl_and_process() {
+  local config_path="$1"
+  local config_label
+  config_label="$(basename "$config_path")"
+
+  echo "[INFO] Running crawl config: $config_path"
+
+  local before_dirs after_dirs new_dirs
+  before_dirs="$(find "$BRONZE_DATE_DIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort || true)"
+
+  python -m crawler.crawl --config "$config_path"
+
+  after_dirs="$(find "$BRONZE_DATE_DIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort || true)"
+  new_dirs="$(comm -13 <(printf '%s\n' "$before_dirs" | sed '/^$/d' | sort) <(printf '%s\n' "$after_dirs" | sed '/^$/d' | sort) || true)"
+
+  if [[ -z "$new_dirs" ]]; then
+    echo "[ERROR] No new crawl_id directory found after running $config_label"
+    exit 1
+  fi
+
+  while IFS= read -r bronze_crawl_dir; do
+    [[ -z "$bronze_crawl_dir" ]] && continue
+    local latest_crawl_id
+    latest_crawl_id="$(basename "$bronze_crawl_dir")"
+    local silver_crawl_dir="$SILVER_DATE_DIR/$latest_crawl_id"
+
+    echo "[INFO] Config: $config_label"
+    echo "[INFO] Latest crawl_id: $latest_crawl_id"
+    echo "[INFO] Bronze crawl dir: $bronze_crawl_dir"
+    echo "[INFO] Silver crawl dir: $silver_crawl_dir"
+
+    echo "[2] Bronze to Silver"
+    python -m transform.bronze_to_silver \
+      --bronze-dir "$bronze_crawl_dir" \
+      --silver-dir "$silver_crawl_dir"
+  done <<< "$new_dirs"
+}
 
 mkdir -p "$LOG_DIR"
 
@@ -44,27 +84,24 @@ fi
 
 echo "[INFO] Python: $(python --version)"
 
-echo "[1] Crawl Bronze"
-python -m crawler.crawl --config "$CRAWL_CONFIG"
-
-LATEST_CRAWL_ID_DIR="$(find "$BRONZE_DATE_DIR" -mindepth 1 -maxdepth 1 -type d | sort | tail -n 1 || true)"
-if [[ -z "$LATEST_CRAWL_ID_DIR" ]]; then
-  echo "[ERROR] No crawl_id directory found under $BRONZE_DATE_DIR"
-  exit 1
+IFS=',' read -r -a CRAWL_CONFIG_ARRAY <<< "$CRAWL_CONFIGS"
+if [[ "$PIPELINE_MODE" == "smoke" ]]; then
+  CRAWL_CONFIG_ARRAY=("${CRAWL_CONFIG_ARRAY[0]}")
+  echo "[INFO] PIPELINE_MODE=smoke: running one crawl config and stopping after Bronze->Silver"
 fi
 
-LATEST_CRAWL_ID="$(basename "$LATEST_CRAWL_ID_DIR")"
-BRONZE_CRAWL_DIR="$LATEST_CRAWL_ID_DIR"
-SILVER_CRAWL_DIR="$SILVER_DATE_DIR/$LATEST_CRAWL_ID"
+for crawl_config in "${CRAWL_CONFIG_ARRAY[@]}"; do
+  echo "[1] Crawl Bronze"
+  run_crawl_and_process "$crawl_config"
+done
 
-echo "[INFO] Latest crawl_id: $LATEST_CRAWL_ID"
-echo "[INFO] Bronze crawl dir: $BRONZE_CRAWL_DIR"
-echo "[INFO] Silver crawl dir: $SILVER_CRAWL_DIR"
-
-echo "[2] Bronze to Silver"
-python -m transform.bronze_to_silver \
-  --bronze-dir "$BRONZE_CRAWL_DIR" \
-  --silver-dir "$SILVER_CRAWL_DIR"
+if [[ "$PIPELINE_MODE" == "smoke" ]]; then
+  echo "[INFO] Smoke test completed"
+  echo "[INFO] End time: $(date -Is)"
+  echo "[SUCCESS] Smoke pipeline completed"
+  echo "[INFO] Log file: $LOG_FILE"
+  exit 0
+fi
 
 echo "[3] Silver to Gold Spark"
 if [[ -z "${JAVA_HOME:-}" ]]; then

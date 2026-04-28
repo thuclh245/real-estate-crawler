@@ -870,6 +870,14 @@ chmod +x scripts/run_phase5_pipeline_linux.sh
 ./scripts/run_phase5_pipeline_linux.sh
 ```
 
+Quick smoke test mode:
+
+```bash
+PIPELINE_MODE=smoke ./scripts/run_phase5_pipeline_linux.sh
+```
+
+Smoke mode runs only one crawl config and stops after Bronze -> Silver, so it is much faster than the full daily pipeline.
+
 Windows helper script:
 
 ```powershell
@@ -904,6 +912,20 @@ Phase 5 completion checklist:
 [ ] Bronze/Silver/Gold/Logs are synced to GCS
 [ ] Dashboard reads Gold tables
 [ ] Screenshots are captured for report/demo
+```
+
+2AM cron setup:
+
+The pipeline is not auto-scheduled by default. On the VM, open `crontab -e` and add:
+
+```cron
+0 2 * * * cd /home/lehuyfc321/real-estate-crawler && GCS_BUCKET=gs://bigdata-subject-real-estate-lakehouse ./scripts/run_phase5_pipeline_linux.sh >> data/logs/daily_pipeline/cron.log 2>&1
+```
+
+Verify with:
+
+```bash
+crontab -l
 ```
 
 Report wording:
