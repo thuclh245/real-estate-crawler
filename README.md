@@ -487,6 +487,20 @@ For new crawl runs, prefer appending only the new `crawl_date` / `crawl_id` fold
 
 Use this when a team member wants to pull shared data from the bucket before running analysis or ETL locally:
 
+Append-only download mode for a new crawl:
+
+Use this when you only want to pull the newest Bronze/Silver crawl folder from GCS without re-downloading older runs.
+
+```bash
+export GCS_BUCKET=gs://bigdata-subject-real-estate-lakehouse
+export CRAWL_DATE=YYYY-MM-DD
+export CRAWL_ID=<crawl_id>
+
+bash scripts/gcs/sync_from_gcs.sh
+```
+
+This will download only the matching Bronze and Silver crawl folder for that date and crawl id. Gold still uses incremental `rsync` because it is derived output.
+
 Windows PowerShell:
 
 ```powershell
@@ -525,6 +539,8 @@ Or run the helper script:
 ```bash
 bash scripts/gcs/sync_from_gcs.sh
 ```
+
+If you do not set `CRAWL_DATE` and `CRAWL_ID`, the helper scripts fall back to full incremental `rsync` for Bronze, Silver, and Gold.
 
 ### 4. Upload Local Data to Cloud Storage
 
