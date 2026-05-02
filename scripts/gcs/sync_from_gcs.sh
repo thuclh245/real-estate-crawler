@@ -20,4 +20,4 @@ download_crawl_folder() {
 
 download_crawl_folder bronze data/bronze
 download_crawl_folder silver data/silver
-gcloud storage rsync --recursive --exclude=".*\.crc$" "$BUCKET/gold" data/gold
+gcloud storage rsync --recursive --delete-unmatched-destination-objects --exclude=".*\.crc$" "$BUCKET/gold" data/gold

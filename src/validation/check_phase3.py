@@ -65,6 +65,13 @@ def fail(message: str) -> None:
     raise SystemExit(f"FAIL: {message}")
 
 
+def load_phase3_summary() -> dict:
+    summary_path = GOLD_BASE_PATH / "phase3_summary.json"
+    if not summary_path.exists():
+        fail(f"Missing {summary_path}")
+    return json.loads(summary_path.read_text(encoding="utf-8"))
+
+
 def create_spark() -> SparkSession:
     return (
         SparkSession.builder
@@ -76,11 +83,7 @@ def create_spark() -> SparkSession:
 
 
 def check_phase3_summary() -> None:
-    summary_path = GOLD_BASE_PATH / "phase3_summary.json"
-    if not summary_path.exists():
-        fail(f"Missing {summary_path}")
-
-    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    summary = load_phase3_summary()
     required_keys = [
         "total_silver_records",
         "total_current_listings",
@@ -124,7 +127,20 @@ def check_phase3_summary() -> None:
     print("PASS: phase3_summary.json")
 
 
+def collect_date_values(df, column_name: str) -> set[str]:
+    if column_name not in df.columns:
+        return set()
+    return {
+        str(row[column_name])
+        for row in df.select(column_name).distinct().collect()
+        if row[column_name] is not None
+    }
+
+
 def check_gold_tables(spark: SparkSession) -> None:
+    summary = load_phase3_summary()
+    expected_snapshot_dates = set(str(value) for value in summary.get("snapshot_dates", []))
+
     for table_name, rule in REQUIRED_TABLES.items():
         table_path = GOLD_BASE_PATH / table_name
         if not table_path.exists():
@@ -138,6 +154,35 @@ def check_gold_tables(spark: SparkSession) -> None:
         missing_columns = [col for col in rule["columns"] if col not in df.columns]
         if missing_columns:
             fail(f"{table_name} missing columns: {missing_columns}")
+
+        if table_name == "gold_current_listings":
+            expected_count = int(summary["total_current_listings"])
+            if row_count != expected_count:
+                fail(
+                    f"{table_name} row count mismatch: "
+                    f"table={row_count}, phase3_summary={expected_count}. "
+                    "This usually means stale parquet files are still present in the Gold folder."
+                )
+
+        if "snapshot_date" in df.columns and expected_snapshot_dates:
+            actual_dates = collect_date_values(df, "snapshot_date")
+            extra_dates = actual_dates - expected_snapshot_dates
+            missing_dates = expected_snapshot_dates - actual_dates
+            if extra_dates or missing_dates:
+                fail(
+                    f"{table_name} snapshot_date mismatch: "
+                    f"extra={sorted(extra_dates)}, missing={sorted(missing_dates)}"
+                )
+
+        if table_name == "gold_data_quality_daily" and expected_snapshot_dates:
+            actual_dates = collect_date_values(df, "crawl_date")
+            extra_dates = actual_dates - expected_snapshot_dates
+            missing_dates = expected_snapshot_dates - actual_dates
+            if extra_dates or missing_dates:
+                fail(
+                    f"{table_name} crawl_date mismatch: "
+                    f"extra={sorted(extra_dates)}, missing={sorted(missing_dates)}"
+                )
 
         print(f"PASS: {table_name} rows={row_count}")
 

@@ -18,4 +18,4 @@ else {
 	gcloud storage rsync --recursive --exclude=".*\.crc$" "$BUCKET/silver" data/silver
 }
 
-gcloud storage rsync --recursive --exclude=".*\.crc$" "$BUCKET/gold" data/gold
+gcloud storage rsync --recursive --delete-unmatched-destination-objects --exclude=".*\.crc$" "$BUCKET/gold" data/gold

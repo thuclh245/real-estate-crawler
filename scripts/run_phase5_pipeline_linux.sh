@@ -116,7 +116,7 @@ echo "[5] Sync to GCS bucket"
 if [[ "$SYNC_TO_GCS" == "true" ]]; then
   gcloud storage rsync --recursive --exclude=".*\.crc$" "$PROJECT_DIR/data/bronze" "$BUCKET/bronze"
   gcloud storage rsync --recursive --exclude=".*\.crc$" "$PROJECT_DIR/data/silver" "$BUCKET/silver"
-  gcloud storage rsync --recursive --exclude=".*\.crc$" "$PROJECT_DIR/data/gold" "$BUCKET/gold"
+  gcloud storage rsync --recursive --delete-unmatched-destination-objects --exclude=".*\.crc$" "$PROJECT_DIR/data/gold" "$BUCKET/gold"
   gcloud storage rsync --recursive --exclude=".*\.crc$" "$PROJECT_DIR/data/logs" "$BUCKET/logs"
 else
   echo "[INFO] SYNC_TO_GCS=false, skipping GCS sync"

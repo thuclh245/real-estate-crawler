@@ -1,14 +1,20 @@
-# Real Estate Crawler
+# Real Estate Lakehouse Pipeline
 
-This crawler collects real estate listings from batdongsan.com.vn and stores them in the Bronze layer to support a lakehouse pipeline.
+This project collects real estate listings from batdongsan.com.vn and runs a batch-first lakehouse pipeline for real estate market analytics.
 
-The current goal is Phase 1:
+The current implementation is a cloud-running prototype:
 
 ```text
-Web source -> Crawler -> Bronze raw HTML/text/metadata/log
+Batdongsan.com.vn
+  -> Craw4AI crawler
+  -> Bronze raw HTML/text/JSON/metadata/log
+  -> Silver cleaned listings
+  -> Gold analytics tables
+  -> Dashboard / report
+  -> Google Cloud Storage
 ```
 
-CSV is not the primary storage format in the current flow.
+The daily pipeline is intended to run on a scheduled Google Compute Engine VM. Bronze, Silver, Gold, and execution logs are synchronized to Google Cloud Storage. CSV files are only convenience samples; Parquet is the primary storage format for Silver and Gold.
 
 ## Setup
 
@@ -483,30 +489,27 @@ Google Cloud Storage is object storage. These are object prefixes, not physical 
 
 For new crawl runs, prefer appending only the new `crawl_date` / `crawl_id` folder to GCS instead of syncing the whole tree again. Use full-tree `rsync` only when you intentionally want to mirror local `data/` to the bucket.
 
+Layer sync behavior:
+
+```text
+Bronze/Silver:
+  Append new crawl_date/crawl_id folders. These layers are historical inputs.
+
+Gold:
+  Mirror the latest generated tables. Gold is derived output and should not keep
+  stale parquet files from older runs in the same table folder.
+```
+
 ### 3. Download Data from Cloud Storage to Local
 
 Use this when a team member wants to pull shared data from the bucket before running analysis or ETL locally:
-
-Append-only download mode for a new crawl:
-
-Use this when you only want to pull the newest Bronze/Silver crawl folder from GCS without re-downloading older runs.
-
-```bash
-export GCS_BUCKET=gs://bigdata-subject-real-estate-lakehouse
-export CRAWL_DATE=YYYY-MM-DD
-export CRAWL_ID=<crawl_id>
-
-bash scripts/gcs/sync_from_gcs.sh
-```
-
-This will download only the matching Bronze and Silver crawl folder for that date and crawl id. Gold still uses incremental `rsync` because it is derived output.
 
 Windows PowerShell:
 
 ```powershell
 gcloud storage rsync --recursive --exclude=".*\.crc$" gs://bigdata-subject-real-estate-lakehouse/bronze data/bronze
 gcloud storage rsync --recursive --exclude=".*\.crc$" gs://bigdata-subject-real-estate-lakehouse/silver data/silver
-gcloud storage rsync --recursive --exclude=".*\.crc$" gs://bigdata-subject-real-estate-lakehouse/gold data/gold
+gcloud storage rsync --recursive --delete-unmatched-destination-objects --exclude=".*\.crc$" gs://bigdata-subject-real-estate-lakehouse/gold data/gold
 ```
 
 Or run the helper script:
@@ -521,7 +524,7 @@ Linux/macOS Bash:
 mkdir -p data/bronze data/silver data/gold
 gcloud storage rsync --recursive --exclude=".*\.crc$" gs://bigdata-subject-real-estate-lakehouse/bronze data/bronze
 gcloud storage rsync --recursive --exclude=".*\.crc$" gs://bigdata-subject-real-estate-lakehouse/silver data/silver
-gcloud storage rsync --recursive --exclude=".*\.crc$" gs://bigdata-subject-real-estate-lakehouse/gold data/gold
+gcloud storage rsync --recursive --delete-unmatched-destination-objects --exclude=".*\.crc$" gs://bigdata-subject-real-estate-lakehouse/gold data/gold
 ```
 
 Quick local check after sync:
@@ -540,8 +543,6 @@ Or run the helper script:
 bash scripts/gcs/sync_from_gcs.sh
 ```
 
-If you do not set `CRAWL_DATE` and `CRAWL_ID`, the helper scripts fall back to full incremental `rsync` for Bronze, Silver, and Gold.
-
 ### 4. Upload Local Data to Cloud Storage
 
 Use this after crawling or running ETL locally:
@@ -555,7 +556,7 @@ Windows PowerShell:
 ```powershell
 gcloud storage rsync --recursive --exclude=".*\.crc$" data/bronze gs://bigdata-subject-real-estate-lakehouse/bronze
 gcloud storage rsync --recursive --exclude=".*\.crc$" data/silver gs://bigdata-subject-real-estate-lakehouse/silver
-gcloud storage rsync --recursive --exclude=".*\.crc$" data/gold gs://bigdata-subject-real-estate-lakehouse/gold
+gcloud storage rsync --recursive --delete-unmatched-destination-objects --exclude=".*\.crc$" data/gold gs://bigdata-subject-real-estate-lakehouse/gold
 ```
 
 Or run the helper script:
@@ -569,7 +570,7 @@ Linux/macOS Bash:
 ```bash
 gcloud storage rsync --recursive --exclude=".*\.crc$" data/bronze gs://bigdata-subject-real-estate-lakehouse/bronze
 gcloud storage rsync --recursive --exclude=".*\.crc$" data/silver gs://bigdata-subject-real-estate-lakehouse/silver
-gcloud storage rsync --recursive --exclude=".*\.crc$" data/gold gs://bigdata-subject-real-estate-lakehouse/gold
+gcloud storage rsync --recursive --delete-unmatched-destination-objects --exclude=".*\.crc$" data/gold gs://bigdata-subject-real-estate-lakehouse/gold
 ```
 
 Or run the helper script:
@@ -601,7 +602,7 @@ gcloud storage cp -r data/bronze/source=batdongsan/crawl_date=YYYY-MM-DD/crawl_i
 gcloud storage cp -r data/silver/source=batdongsan/crawl_date=YYYY-MM-DD/crawl_id=<crawl_id> "$GCS_BUCKET/silver/source=batdongsan/crawl_date=YYYY-MM-DD/"
 ```
 
-If you need to upload Gold outputs too, keep in mind Gold is derived analytics data and may be regenerated per run. In that case, the script still uses incremental `rsync` for `data/gold`, so only new or changed Gold objects are transferred.
+If you need to upload Gold outputs too, keep in mind Gold is derived analytics data and may be regenerated per run. Gold sync intentionally uses `--delete-unmatched-destination-objects` so stale parquet files from older Gold runs are removed from the bucket. Do not use this delete mode for Bronze/Silver historical crawl folders unless you intentionally want to mirror and prune those layers.
 
 ### 5. Suggested Team Workflow
 
@@ -774,7 +775,16 @@ python -m validation.check_phase3
 
 `validation.check_phase3` is the official Phase 3 validation checklist. If it prints `PASS: Phase 3 validation checklist`, the Gold layer is ready for report/dashboard use.
 
-The GCS sync scripts use `gcloud storage rsync --exclude=".*\.crc$"`, so Spark checksum files are not uploaded or downloaded. That mode is incremental, not a destructive mirror, but it is still different from append-only upload of a single new crawl folder.
+The validation also protects against stale Gold parquet files. For example, if `phase3_summary.json` says `total_current_listings = 1429` but `gold_current_listings/` contains old parquet files and reads as a larger count, validation fails. In that case, regenerate Gold on Linux/VM and sync Gold with delete mode:
+
+```bash
+export PYTHONPATH=src
+python -m transform.silver_to_gold
+python -m validation.check_phase3
+gcloud storage rsync --recursive --delete-unmatched-destination-objects --exclude=".*\.crc$" data/gold gs://bigdata-subject-real-estate-lakehouse/gold
+```
+
+The GCS sync scripts always exclude Spark `.crc` checksum files. Bronze/Silver sync is append-friendly. Gold sync is a mirror of the latest derived output and removes unmatched old Gold objects.
 
 ### 8. Phase 4 Dashboard
 
@@ -841,8 +851,6 @@ Use dashboard screenshots in the report/demo after running Phase 3 and validatin
 
 ### 9. Phase 5 Pipeline Orchestration
 
-Phase 5 focuses on orchestration and Spark runtime validation. The canonical Spark Gold ETL is implemented in:
-
 ```text
 src/transform/silver_to_gold.py
 ```
@@ -853,16 +861,6 @@ Do not create a duplicate `silver_to_gold_spark.py` unless the transformation lo
 src/validation/check_phase3.py
 ```
 
-The Linux pipeline script now runs the full daily flow in order:
-
-```text
-1. Crawl Bronze
-2. Bronze to Silver
-3. Silver to Gold Spark
-4. Validate Gold
-5. Sync Bronze/Silver/Gold/Logs to GCS
-```
-
 Linux / Google Cloud VM is the official Spark runtime:
 
 ```bash
@@ -870,74 +868,74 @@ chmod +x scripts/run_phase5_pipeline_linux.sh
 ./scripts/run_phase5_pipeline_linux.sh
 ```
 
-Quick smoke test mode:
-
-```bash
-PIPELINE_MODE=smoke ./scripts/run_phase5_pipeline_linux.sh
-```
-
-Smoke mode runs only one crawl config and stops after Bronze -> Silver, so it is much faster than the full daily pipeline.
-
 Windows helper script:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\run_phase5_pipeline_windows.ps1
 ```
 
-The script automatically:
-
-```text
-- uses configs/crawl_targets.yaml unless CRAWL_CONFIG is overridden
-- finds the latest crawl_id under data/bronze/source=batdongsan/crawl_date=YYYY-MM-DD/
-- writes Silver output to the matching crawl_id directory
-- syncs data/bronze, data/silver, data/gold, and data/logs to the GCS bucket defined by GCS_BUCKET
-```
-
 Phase 5 writes execution logs to:
 
 ```text
-data/logs/daily_pipeline/
+Linux daily pipeline:
+  data/logs/daily_pipeline/
+
+Windows helper:
+  data/logs/phase5_spark/
 ```
 
 Phase 5 completion checklist:
 
 ```text
-[ ] Run pipeline on Linux / Google Cloud VM
-[ ] Crawl Bronze completes and creates a crawl_id folder
-[ ] Bronze-to-Silver completes for the latest crawl_id
+[ ] Scheduled Google Compute Engine VM starts successfully
+[ ] Daily pipeline script runs on Linux / Google Cloud VM
+[ ] Bronze crawl data is written for the run
+[ ] Bronze-to-Silver parser writes Silver listings
 [ ] Spark Silver-to-Gold job completes
-[ ] Gold Parquet tables are created or updated
+[ ] Gold Parquet tables are regenerated
 [ ] validation.check_phase3 passes
-[ ] Execution log exists under data/logs/daily_pipeline
-[ ] Bronze/Silver/Gold/Logs are synced to GCS
-[ ] Dashboard reads Gold tables
+[ ] Bronze/Silver/Gold/logs sync to GCS
+[ ] Gold sync removes stale parquet files from previous Gold runs
+[ ] Dashboard reads validated Gold tables
 [ ] Screenshots are captured for report/demo
-```
-
-2AM cron setup:
-
-The pipeline is not auto-scheduled by default. On the VM, open `crontab -e` and add:
-
-```cron
-0 2 * * * cd /home/lehuyfc321/real-estate-crawler && GCS_BUCKET=gs://bigdata-subject-real-estate-lakehouse ./scripts/run_phase5_pipeline_linux.sh >> data/logs/daily_pipeline/cron.log 2>&1
-```
-
-Verify with:
-
-```bash
-crontab -l
 ```
 
 Report wording:
 
 ```text
-Phase 5 focuses on pipeline orchestration and Spark runtime validation. Since the Gold transformation module has already been implemented using PySpark, this phase does not duplicate the transformation logic. Instead, it standardizes the execution workflow on a Linux-based Google Cloud VM, runs the daily crawl-to-Gold batch, validates the generated Gold tables, syncs outputs to GCS, and stores execution logs for reproducibility and auditing.
+Phase 5 focuses on cloud-scheduled pipeline orchestration and Spark runtime validation. Since the Gold transformation module has already been implemented using PySpark, this phase does not duplicate the transformation logic. Instead, it standardizes the execution workflow on a scheduled Google Compute Engine VM, runs the crawler, Bronze-to-Silver parser, Spark-based Silver-to-Gold ETL job, validates the generated Gold tables, and stores execution logs for reproducibility and auditing.
 ```
 
 ### 10. Current Project Flow
 
 ```text
-Crawl -> Bronze -> Bronze-to-Silver -> Silver-to-Gold -> Dashboard -> Sync to GCS
+Scheduled Google Compute Engine VM
+  -> Crawl Bronze
+  -> Bronze-to-Silver
+  -> Silver-to-Gold with Spark
+  -> validation.check_phase3
+  -> Sync Bronze/Silver/Gold/logs to GCS
+  -> Dashboard reads Gold
+```
+
+Current implemented scope:
+
+```text
+Implemented:
+  Bronze/Silver/Gold lakehouse layout
+  Craw4AI crawler
+  Bronze-to-Silver parser and quality flags
+  PySpark Silver-to-Gold transformation
+  Daily scheduled VM pipeline
+  GCS sync for Bronze/Silver/Gold/logs
+  Streamlit dashboard over Gold
+  Phase 3 Gold validation
+
+Optional future work:
+  BigQuery + Looker Studio serving layer
+  Dataproc / Managed Spark
+  Cloud Composer / Airflow orchestration
+  ML valuation model
 ```
 
 ## Design Docs

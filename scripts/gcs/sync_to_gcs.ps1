@@ -26,4 +26,4 @@ if ($CRAWL_DATE -and $CRAWL_ID) {
 	gcloud storage rsync --recursive --exclude=".*\.crc$" data/silver "$BUCKET/silver"
 }
 
-gcloud storage rsync --recursive --exclude=".*\.crc$" data/gold "$BUCKET/gold"
+gcloud storage rsync --recursive --delete-unmatched-destination-objects --exclude=".*\.crc$" data/gold "$BUCKET/gold"

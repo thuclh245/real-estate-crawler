@@ -18,3 +18,5 @@ data/silver/*
 
 data/gold/
 data/logs/daily_pipeline/*
+
+data/bronze/bronze/source=batdongsan
