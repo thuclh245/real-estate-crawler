@@ -879,10 +879,35 @@ Phase 5 writes execution logs to:
 ```text
 Linux daily pipeline:
   data/logs/daily_pipeline/
+  data/logs/daily_pipeline/run_date=YYYY-MM-DD/daily_run_summary.json
 
 Windows helper:
   data/logs/phase5_spark/
 ```
+
+The Linux daily pipeline writes a structured run summary after each run:
+
+```json
+{
+  "summary_schema_version": "daily_run_summary_v1",
+  "run_id": "daily_20260502_030000",
+  "run_date": "2026-05-02",
+  "pipeline_status": "success",
+  "validation_status": "pass",
+  "gcs_sync_status": "success",
+  "total_silver_records": 3658,
+  "total_current_listings": 1429,
+  "duplicate_record_count": 994,
+  "duplicate_rate": 0.2717,
+  "parse_success_rate": 1.0,
+  "missing_price_rate": 0.0,
+  "missing_area_rate": 0.0,
+  "missing_location_rate": 0.0,
+  "snapshot_dates": ["2026-04-26", "2026-04-28", "2026-04-29", "2026-04-30", "2026-05-01"]
+}
+```
+
+This file is useful for report evidence and daily monitoring because it summarizes whether the scheduled VM run, Gold validation, and GCS sync completed successfully.
 
 Phase 5 completion checklist:
 
