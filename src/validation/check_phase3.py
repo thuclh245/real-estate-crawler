@@ -164,7 +164,16 @@ def check_gold_tables(spark: SparkSession) -> None:
                     "This usually means stale parquet files are still present in the Gold folder."
                 )
 
-        if "snapshot_date" in df.columns and expected_snapshot_dates:
+        if table_name == "gold_removed_listings" and "snapshot_date" in df.columns and expected_snapshot_dates:
+            actual_dates = collect_date_values(df, "snapshot_date")
+            extra_dates = actual_dates - expected_snapshot_dates
+            if extra_dates:
+                fail(
+                    f"{table_name} snapshot_date mismatch: "
+                    f"extra={sorted(extra_dates)}, expected_subset_of={sorted(expected_snapshot_dates)}"
+                )
+
+        elif "snapshot_date" in df.columns and expected_snapshot_dates:
             actual_dates = collect_date_values(df, "snapshot_date")
             extra_dates = actual_dates - expected_snapshot_dates
             missing_dates = expected_snapshot_dates - actual_dates
