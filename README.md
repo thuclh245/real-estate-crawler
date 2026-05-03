@@ -924,6 +924,16 @@ The Linux daily pipeline writes a structured run summary after each run:
 
 This file is useful for report evidence and daily monitoring because it summarizes whether the scheduled VM run, Gold validation, and GCS sync completed successfully.
 
+**Monitor yesterday's run (when VM is delayed by a day):**
+
+Linux/macOS Bash:
+
+```bash
+cat data/logs/daily_pipeline/run_date=$(date -d "yesterday" +%Y-%m-%d)/daily_run_summary.json
+```
+
+This is useful when running on a VM that processes the previous day's data with a one-day delay. Replace `yesterday` with a specific date like `2026-05-01` if needed.
+
 Phase 5 completion checklist:
 
 ```text
