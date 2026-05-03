@@ -2,11 +2,11 @@
 
 This project collects real estate listings from batdongsan.com.vn and runs a batch-first lakehouse pipeline for real estate market analytics.
 
-The current implementation is a cloud-running prototype:
+The current implementation is a cloud-running batch pipeline:
 
 ```text
 Batdongsan.com.vn
-  -> Craw4AI crawler
+  -> Crawl4AI crawler
   -> Bronze raw HTML/text/JSON/metadata/log
   -> Silver cleaned listings
   -> Gold analytics tables
@@ -14,7 +14,7 @@ Batdongsan.com.vn
   -> Google Cloud Storage
 ```
 
-The daily pipeline is intended to run on a scheduled Google Compute Engine VM. Bronze, Silver, Gold, and execution logs are synchronized to Google Cloud Storage. CSV files are only convenience samples; Parquet is the primary storage format for Silver and Gold.
+The daily pipeline runs on a scheduled Google Compute Engine VM. Bronze, Silver, Gold, and execution logs are synchronized to Google Cloud Storage. CSV files are only convenience samples; Parquet is the primary storage format for Silver and Gold.
 
 ## Setup
 
@@ -207,11 +207,11 @@ configs/crawl_targets_scale.yaml
 
 configs/team/priority_a_ha_noi.yaml
   Priority A Hanoi batch 01:
-  Thanh Xuân, Cầu Giấy, Đống Đa, Hà Đông.
+  Thanh Xuan, Cau Giay, Dong Da, Ha Dong.
 
 configs/team/priority_a_ha_noi_expand_01.yaml
   Priority A Hanoi expanded batch 01:
-  Hoàn Kiếm, Ba Đình, Hoàng Mai, Tây Hồ, Từ Liêm, Hai Bà Trưng.
+  Hoan Kiem, Ba Dinh, Hoang Mai, Tay Ho, Tu Liem, Hai Ba Trung.
 ```
 
 `configs/team/priority_a_ha_noi.yaml` covers the first priority A Hanoi locations across apartment, house, land, and villa/townhouse categories:
@@ -358,7 +358,7 @@ If `http_status = 200`, `listing_urls_found > 0`, `is_blocked = false`, and `err
 - Do not bypass CAPTCHA or use proxy rotation to evade anti-bot protection.
 - Images are not downloaded in the current version.
 - Raw HTML in Bronze is kept so it can be parsed again later.
-- The Phase 1 parser should stay minimal; the production parser belongs in the Silver/ETL phase.
+- The crawler parser should stay minimal; production parsing and normalization belong in the Bronze-to-Silver phase.
 
 ## Google Cloud Setup and Data Lakehouse Structure
 
@@ -483,6 +483,7 @@ gs://bigdata-subject-real-estate-lakehouse/
   bronze/   # Raw crawl data
   silver/   # Cleaned listing snapshot data
   gold/     # Aggregated analytics tables
+  logs/     # Daily pipeline logs and run summaries
 ```
 
 Google Cloud Storage is object storage. These are object prefixes, not physical folders.
@@ -549,7 +550,7 @@ Use this after crawling or running ETL locally:
 
 Full-tree sync mode:
 
-This is incremental and transfers only new or changed objects, but it still scans the full local tree.
+Bronze/Silver sync is incremental and transfers only new or changed objects. Gold sync is a mirror of the latest derived tables and removes unmatched old Gold objects.
 
 Windows PowerShell:
 
@@ -627,7 +628,7 @@ Windows PowerShell:
 ```powershell
 $env:PYTHONPATH = "src"
 .\.venv\Scripts\python.exe -m crawler.crawl --config configs\crawl_targets_scale.yaml
-.\.venv\Scripts\python.exe -m transform.bronze_to_silver --bronze-dir data\bronze\source=batdongsan\crawl_date=2026-04-25\crawl_id=<crawl_id> --silver-dir data\silver\source=batdongsan\crawl_date=2026-04-25\crawl_id=<crawl_id>
+.\.venv\Scripts\python.exe -m transform.bronze_to_silver --bronze-dir data\bronze\source=batdongsan\crawl_date=YYYY-MM-DD\crawl_id=<crawl_id> --silver-dir data\silver\source=batdongsan\crawl_date=YYYY-MM-DD\crawl_id=<crawl_id>
 ```
 
 Phase 3 Gold should be run on Linux/VM because it uses Spark.
@@ -639,7 +640,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 export PYTHONPATH=src
 python -m crawler.crawl --config configs/crawl_targets_scale.yaml
-python -m transform.bronze_to_silver --bronze-dir data/bronze/source=batdongsan/crawl_date=2026-04-25/crawl_id=<crawl_id> --silver-dir data/silver/source=batdongsan/crawl_date=2026-04-25/crawl_id=<crawl_id>
+python -m transform.bronze_to_silver --bronze-dir data/bronze/source=batdongsan/crawl_date=YYYY-MM-DD/crawl_id=<crawl_id> --silver-dir data/silver/source=batdongsan/crawl_date=YYYY-MM-DD/crawl_id=<crawl_id>
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 export PATH="$JAVA_HOME/bin:$PATH"
 python -m transform.silver_to_gold
@@ -668,14 +669,13 @@ For the team/project pipeline, create a service account such as:
 real-estate-pipeline-sa
 ```
 
-Recommended roles:
+Recommended roles for the scheduled VM pipeline:
 
 ```text
-Storage Object Viewer
-Storage Object Creator
+Storage Object Admin
 ```
 
-For easier student project setup, `Storage Object Admin` is also acceptable, but it is broader than necessary.
+Reason: Bronze/Silver uploads are append-friendly, but Gold sync uses `--delete-unmatched-destination-objects` to remove stale derived parquet files. That delete operation requires delete permission on Cloud Storage objects. For a stricter production setup, grant narrow permissions or a custom role scoped to the bucket/prefixes.
 
 On a Google Cloud VM, attach the service account to the VM so code can access Cloud Storage without downloading a JSON key file.
 
@@ -775,7 +775,7 @@ python -m validation.check_phase3
 
 `validation.check_phase3` is the official Phase 3 validation checklist. If it prints `PASS: Phase 3 validation checklist`, the Gold layer is ready for report/dashboard use.
 
-The validation also protects against stale Gold parquet files. For example, if `phase3_summary.json` says `total_current_listings = 1429` but `gold_current_listings/` contains old parquet files and reads as a larger count, validation fails. In that case, regenerate Gold on Linux/VM and sync Gold with delete mode:
+The validation also protects against stale Gold parquet files. For example, if `phase3_summary.json` says `total_current_listings = 1541` but `gold_current_listings/` contains old parquet files and reads as a larger count, validation fails. In that case, regenerate Gold on Linux/VM and sync Gold with delete mode:
 
 ```bash
 export PYTHONPATH=src
@@ -785,6 +785,20 @@ gcloud storage rsync --recursive --delete-unmatched-destination-objects --exclud
 ```
 
 The GCS sync scripts always exclude Spark `.crc` checksum files. Bronze/Silver sync is append-friendly. Gold sync is a mirror of the latest derived output and removes unmatched old Gold objects.
+
+Latest validated run used for the current report baseline:
+
+```text
+run_date = 2026-05-02
+pipeline_status = success
+validation_status = pass
+gcs_sync_status = success
+total_silver_records = 4213
+total_current_listings = 1541
+duplicate_rate = 0.2359
+parse_success_rate = 1.0
+snapshot_dates = 6
+```
 
 ### 8. Phase 4 Dashboard
 
@@ -890,20 +904,21 @@ The Linux daily pipeline writes a structured run summary after each run:
 ```json
 {
   "summary_schema_version": "daily_run_summary_v1",
-  "run_id": "daily_20260502_030000",
+  "run_id": "daily_20260502_190001",
   "run_date": "2026-05-02",
+  "pipeline_mode": "full",
   "pipeline_status": "success",
   "validation_status": "pass",
   "gcs_sync_status": "success",
-  "total_silver_records": 3658,
-  "total_current_listings": 1429,
+  "total_silver_records": 4213,
+  "total_current_listings": 1541,
   "duplicate_record_count": 994,
-  "duplicate_rate": 0.2717,
+  "duplicate_rate": 0.2359,
   "parse_success_rate": 1.0,
   "missing_price_rate": 0.0,
   "missing_area_rate": 0.0,
   "missing_location_rate": 0.0,
-  "snapshot_dates": ["2026-04-26", "2026-04-28", "2026-04-29", "2026-04-30", "2026-05-01"]
+  "snapshot_dates": ["2026-04-26", "2026-04-28", "2026-04-29", "2026-04-30", "2026-05-01", "2026-05-02"]
 }
 ```
 
@@ -948,7 +963,7 @@ Current implemented scope:
 ```text
 Implemented:
   Bronze/Silver/Gold lakehouse layout
-  Craw4AI crawler
+  Crawl4AI crawler
   Bronze-to-Silver parser and quality flags
   PySpark Silver-to-Gold transformation
   Daily scheduled VM pipeline
