@@ -2,6 +2,8 @@ import json
 from datetime import datetime
 from pathlib import Path
 
+from functools import reduce
+
 from pyspark.sql import SparkSession, Window
 from pyspark.sql import functions as F
 from pyspark.sql import types as T
@@ -21,6 +23,17 @@ GOLD_TABLES_CREATED = [
 
 def log_step(message: str) -> None:
     print(f"[silver_to_gold] {message}")
+
+def cast_void_columns_to_string(input_df):
+    """
+    Spark cannot read/write NullType (VOID) consistently across parquet files.
+    Cast NullType columns to string to stabilize schema merges.
+    """
+    result_df = input_df
+    for field in result_df.schema.fields:
+        if isinstance(field.dataType, T.NullType):
+            result_df = result_df.withColumn(field.name, F.col(field.name).cast("string"))
+    return result_df
 
 def create_spark() -> SparkSession:
     warehouse_dir = Path("spark-warehouse").resolve().as_uri()
@@ -62,7 +75,16 @@ def read_silver(spark: SparkSession, silver_base_path: str):
         log_step(f"... and {len(paths) - len(preview)} more file(s)")
 
     log_step("Loading parquet files into Spark DataFrame")
-    df = spark.read.parquet(*paths)
+    dataframes = []
+    for path in paths:
+        df_part = spark.read.parquet(path)
+        df_part = cast_void_columns_to_string(df_part)
+        dataframes.append(df_part)
+
+    df = reduce(
+        lambda left, right: left.unionByName(right, allowMissingColumns=True),
+        dataframes,
+    )
     log_step(f"Initial columns: {', '.join(df.columns)}")
 
     # Fill partition columns from input file path if they are missing.
@@ -419,12 +441,9 @@ def build_removed_listings(daily_deduped_df):
     thì tạo 1 record removed tại ngày sau.
     """
 
-    dates = [
-        row["crawl_date"]
-        for row in daily_deduped_df.select("crawl_date").distinct().orderBy("crawl_date").collect()
-    ]
+    dates_df = daily_deduped_df.select("crawl_date").distinct()
 
-    if len(dates) < 2:
+    if dates_df.count() < 2:
         return (
             daily_deduped_df.limit(0)
             .withColumn("snapshot_date", F.lit(None).cast("string"))
@@ -433,48 +452,32 @@ def build_removed_listings(daily_deduped_df):
             .withColumn("is_removed_listing", F.lit(True))
         )
 
-    removed_dfs = []
+    date_window = Window.orderBy("crawl_date")
+    date_map = dates_df.withColumn("next_crawl_date", F.lead("crawl_date").over(date_window))
 
-    for i in range(1, len(dates)):
-        prev_date = dates[i - 1]
-        curr_date = dates[i]
+    prev_with_next = (
+        daily_deduped_df
+        .join(date_map, on="crawl_date", how="left")
+        .filter(F.col("next_crawl_date").isNotNull())
+    )
 
-        prev_df = (
-            daily_deduped_df
-            .filter(F.col("crawl_date") == prev_date)
-        )
+    next_presence = (
+        daily_deduped_df
+        .select("dedup_key", "crawl_date")
+        .withColumnRenamed("crawl_date", "next_crawl_date")
+    )
 
-        curr_df = (
-            daily_deduped_df
-            .filter(F.col("crawl_date") == curr_date)
-            .select("dedup_key")
-            .distinct()
-        )
+    removed_df = (
+        prev_with_next
+        .join(next_presence, on=["dedup_key", "next_crawl_date"], how="left_anti")
+        .withColumn("snapshot_date", F.col("next_crawl_date"))
+        .withColumn("last_seen_before_removed", F.col("crawl_date"))
+        .withColumn("snapshot_status", F.lit("removed"))
+        .withColumn("is_removed_listing", F.lit(True))
+        .drop("next_crawl_date")
+    )
 
-        removed_keys = (
-            prev_df.join(curr_df, on="dedup_key", how="left_anti")
-            .withColumn("snapshot_date", F.lit(curr_date))
-            .withColumn("last_seen_before_removed", F.lit(prev_date))
-            .withColumn("snapshot_status", F.lit("removed"))
-            .withColumn("is_removed_listing", F.lit(True))
-        )
-
-        removed_dfs.append(removed_keys)
-
-    if not removed_dfs:
-        return (
-            daily_deduped_df.limit(0)
-            .withColumn("snapshot_date", F.lit(None).cast("string"))
-            .withColumn("last_seen_before_removed", F.lit(None).cast("string"))
-            .withColumn("snapshot_status", F.lit("removed"))
-            .withColumn("is_removed_listing", F.lit(True))
-        )
-
-    result = removed_dfs[0]
-    for df in removed_dfs[1:]:
-        result = result.unionByName(df)
-
-    return result
+    return removed_df
 
 def build_gold_current_listings(snapshot_df):
     """
@@ -579,14 +582,6 @@ def write_gold_table(df, output_path: str, partition_cols=None):
     """
     Ghi Gold table ra Parquet.
     """
-    def cast_void_columns_to_string(input_df):
-        # Spark CSV cannot write NullType (shown as VOID in error messages).
-        result_df = input_df
-        for field in result_df.schema.fields:
-            if isinstance(field.dataType, T.NullType):
-                result_df = result_df.withColumn(field.name, F.col(field.name).cast("string"))
-        return result_df
-
     writer = df.write.mode("overwrite")
 
     if partition_cols:
