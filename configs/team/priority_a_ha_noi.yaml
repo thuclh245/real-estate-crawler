@@ -8,7 +8,7 @@ crawl_settings:
   request_delay_seconds: 5
   concurrency: 1
   max_pages_per_target: 1
-  max_listings_per_target: 20
+  max_listings_per_target: 30
   max_retries: 1
   retry_delay_seconds: 10
   crawler_version: v0.1
