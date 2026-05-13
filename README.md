@@ -8,7 +8,7 @@ The current implementation is a cloud-running batch pipeline:
 Batdongsan.com.vn
   -> Crawl4AI crawler
   -> Bronze raw HTML/text/JSON/metadata/log
-  -> Silver cleaned listings
+  -> Silver cleaned and regex-enriched listings
   -> Gold analytics tables
   -> Dashboard / report
   -> Google Cloud Storage
@@ -323,6 +323,70 @@ blocked_count increases
 HTML size is very small
 success_count drops sharply
 metadata is missing
+```
+
+## Silver Feature Enrichment
+
+Bronze-to-Silver now enriches each parsed listing with regex/rule-based property features before quality flags are applied:
+
+```text
+parse_listing()
+  -> extract_features()
+  -> apply_quality_flags()
+  -> listings.parquet / listings.csv
+```
+
+The enrichment module lives in:
+
+```text
+src/crawler/parsing/feature_text_utils.py
+src/crawler/parsing/feature_patterns.py
+src/crawler/parsing/feature_extractors.py
+```
+
+`extract_features()` returns a stable 22-column feature contract defined by `FEATURE_OUTPUT_KEYS`:
+
+```text
+has_legal_info
+legal_status_raw
+has_red_pink_book
+floor_count
+seller_type
+furniture_level
+frontage_width
+bathroom_count
+project_name
+bedroom_count
+is_business_suitable
+has_urban_area_flag
+has_security_flag
+has_educated_community_flag
+has_high_intellect_flag
+has_residential_area_flag
+has_subdivision_flag
+direction
+is_price_negotiable
+has_car_access
+car_access_type
+building_name
+```
+
+Most patterns run on normalized Vietnamese text without accents, which makes matching more robust when raw crawl text has inconsistent encoding. Project and building names still use raw text so proper names can keep accents when available.
+
+`is_price_negotiable` is combined with the existing price quality logic. A listing is negotiable if either `price_unit == "negotiable"` or the enrichment regex finds negotiable-price text such as `thuong luong`, `thoa thuan`, or equivalent phrases.
+
+Run the enrichment tests:
+
+Windows PowerShell:
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s tests
+```
+
+Linux/macOS Bash:
+
+```bash
+.venv/bin/python -m unittest discover -s tests
 ```
 
 ## List Page Debugging
@@ -974,7 +1038,7 @@ Current implemented scope:
 Implemented:
   Bronze/Silver/Gold lakehouse layout
   Crawl4AI crawler
-  Bronze-to-Silver parser and quality flags
+  Bronze-to-Silver parser, regex feature enrichment, and quality flags
   PySpark Silver-to-Gold transformation
   Daily scheduled VM pipeline
   GCS sync for Bronze/Silver/Gold/logs
