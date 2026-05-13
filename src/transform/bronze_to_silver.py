@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import pandas as pd
 
 from crawler.parsing.batdongsan_parser import parse_listing
+from crawler.parsing import extract_features
 from crawler.parsing.quality_checks import apply_quality_flags
 
 
@@ -62,6 +63,7 @@ def run_bronze_to_silver(
                 parser_version=parser_version
             )
 
+            record.update(extract_features(record))
             record = apply_quality_flags(record)
 
             records.append(record)
