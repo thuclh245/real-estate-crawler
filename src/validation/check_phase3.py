@@ -77,6 +77,8 @@ def create_spark() -> SparkSession:
         SparkSession.builder
         .appName("CheckPhase3")
         .master("local[*]")
+        .config("spark.driver.bindAddress", "127.0.0.1")
+        .config("spark.driver.host", "127.0.0.1")
         .config("spark.sql.session.timeZone", "Asia/Ho_Chi_Minh")
         .getOrCreate()
     )
@@ -146,11 +148,24 @@ def check_gold_tables(spark: SparkSession) -> None:
         if not table_path.exists():
             fail(f"Missing Gold table path: {table_path}")
 
+        parquet_files = list(table_path.rglob("*.parquet"))
+        if not parquet_files:
+            if rule["min_count"] == 0:
+                print(f"PASS: {table_name} (empty, no parquet files)")
+                continue
+            fail(f"{table_name} has no parquet files, expected >= {rule['min_count']} rows")
+
+        parquet_files = list(table_path.rglob("*.parquet"))
+        if not parquet_files:
+            if rule["min_count"] == 0:
+                print(f"PASS: {table_name} (empty, no parquet files)")
+                continue
+            fail(f"{table_name} has no parquet files, expected >= {rule['min_count']} rows")
+
         df = spark.read.parquet(str(table_path))
         row_count = df.count()
         if row_count < rule["min_count"]:
             fail(f"{table_name} has {row_count} rows, expected >= {rule['min_count']}")
-
         missing_columns = [col for col in rule["columns"] if col not in df.columns]
         if missing_columns:
             fail(f"{table_name} missing columns: {missing_columns}")

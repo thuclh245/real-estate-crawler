@@ -64,7 +64,8 @@ def read_gold_table(table_name: str) -> pd.DataFrame:
         if csv_files:
             return pd.concat([pd.read_csv(file_path) for file_path in csv_files], ignore_index=True)
 
-    raise FileNotFoundError(f"Cannot read Gold table: {path}")
+        # Directory exists but no data files (e.g. empty Spark output)
+        return pd.DataFrame()
 
 
 @st.cache_data(show_spinner=False)

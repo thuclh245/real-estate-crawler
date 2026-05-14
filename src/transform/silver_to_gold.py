@@ -29,6 +29,8 @@ def create_spark() -> SparkSession:
         SparkSession.builder
         .appName("SilverToGoldRealEstate")
         .master("local[*]")
+        .config("spark.driver.bindAddress", "127.0.0.1")
+        .config("spark.driver.host", "127.0.0.1")
         .config("spark.sql.session.timeZone", "Asia/Ho_Chi_Minh")
         .config("spark.sql.warehouse.dir", warehouse_dir)
         .getOrCreate()
@@ -544,21 +546,40 @@ def build_gold_data_quality_daily(df_before_dedup, df_after_dedup):
     Tạo bảng data quality daily.
     """
 
+    # Build base aggregations
+    agg_exprs = [
+        F.count("*").alias("total_records"),
+        F.sum(F.when(F.col("parse_status") == "success", 1).otherwise(0)).alias("parse_success_count"),
+        F.sum(F.when(F.col("is_missing_price"), 1).otherwise(0)).alias("missing_price_count"),
+        F.sum(F.when(F.col("is_price_negotiable"), 1).otherwise(0)).alias("negotiable_price_count"),
+        F.sum(F.when(F.col("is_missing_area"), 1).otherwise(0)).alias("missing_area_count"),
+        F.sum(F.when(F.col("is_missing_location"), 1).otherwise(0)).alias("missing_location_count"),
+        F.sum(F.when(F.col("is_invalid_price"), 1).otherwise(0)).alias("invalid_price_count"),
+        F.sum(F.when(F.col("is_invalid_area"), 1).otherwise(0)).alias("invalid_area_count"),
+        F.sum(F.when(F.col("is_duplicate_in_snapshot"), 1).otherwise(0)).alias("duplicate_record_count"),
+        F.countDistinct("dedup_key").alias("distinct_dedup_key_count"),
+    ]
+
+    # Add new quality flags if they exist
+    new_quality_cols = [
+        "is_outlier_price",
+        "is_outlier_area",
+        "is_outlier_unit_price",
+        "is_invalid_unit_price",
+        "is_suspicious_bedroom_count",
+        "is_description_too_short",
+        "is_inconsistent_price_area",
+    ]
+    for col_name in new_quality_cols:
+        if col_name in df_before_dedup.columns:
+            agg_exprs.append(
+                F.sum(F.when(F.col(col_name), 1).otherwise(0)).alias(f"{col_name}_count")
+            )
+
     base_quality = (
         df_before_dedup
         .groupBy("crawl_date", "source")
-        .agg(
-            F.count("*").alias("total_records"),
-            F.sum(F.when(F.col("parse_status") == "success", 1).otherwise(0)).alias("parse_success_count"),
-            F.sum(F.when(F.col("is_missing_price"), 1).otherwise(0)).alias("missing_price_count"),
-            F.sum(F.when(F.col("is_price_negotiable"), 1).otherwise(0)).alias("negotiable_price_count"),
-            F.sum(F.when(F.col("is_missing_area"), 1).otherwise(0)).alias("missing_area_count"),
-            F.sum(F.when(F.col("is_missing_location"), 1).otherwise(0)).alias("missing_location_count"),
-            F.sum(F.when(F.col("is_invalid_price"), 1).otherwise(0)).alias("invalid_price_count"),
-            F.sum(F.when(F.col("is_invalid_area"), 1).otherwise(0)).alias("invalid_area_count"),
-            F.sum(F.when(F.col("is_duplicate_in_snapshot"), 1).otherwise(0)).alias("duplicate_record_count"),
-            F.countDistinct("dedup_key").alias("distinct_dedup_key_count")
-        )
+        .agg(*agg_exprs)
     )
 
     quality = (
@@ -572,6 +593,11 @@ def build_gold_data_quality_daily(df_before_dedup, df_after_dedup):
         .withColumn("invalid_area_rate", F.col("invalid_area_count") / F.col("total_records"))
         .withColumn("duplicate_rate", F.col("duplicate_record_count") / F.col("total_records"))
     )
+
+    # Add rates for new quality columns
+    for col_name in new_quality_cols:
+        if f"{col_name}_count" in quality.columns:
+            quality = quality.withColumn(f"{col_name}_rate", F.col(f"{col_name}_count") / F.col("total_records"))
 
     return quality
 
@@ -612,14 +638,26 @@ def write_phase3_summary(
     output_path: str,
     gold_tables_created: list[str],
 ) -> None:
-    quality_totals = gold_quality_df.agg(
+    agg_exprs = [
         F.sum("total_records").alias("total_silver_records"),
         F.sum("parse_success_count").alias("parse_success_count"),
         F.sum("missing_price_count").alias("missing_price_count"),
         F.sum("missing_area_count").alias("missing_area_count"),
         F.sum("missing_location_count").alias("missing_location_count"),
         F.sum("duplicate_record_count").alias("duplicate_record_count"),
-    ).collect()[0]
+    ]
+    new_cols_for_summary = [
+        "is_outlier_unit_price_count",
+        "is_invalid_unit_price_count",
+        "is_suspicious_bedroom_count_count",
+        "is_description_too_short_count",
+        "is_inconsistent_price_area_count",
+    ]
+    for c in new_cols_for_summary:
+        if c in gold_quality_df.columns:
+            agg_exprs.append(F.sum(c).alias(c))
+
+    quality_totals = gold_quality_df.agg(*agg_exprs).collect()[0]
 
     total_silver_records = int(quality_totals["total_silver_records"] or 0)
     duplicate_record_count = int(quality_totals["duplicate_record_count"] or 0)
@@ -662,6 +700,14 @@ def write_phase3_summary(
         "gold_tables_created": gold_tables_created,
         "created_at": datetime.now().isoformat(timespec="seconds"),
     }
+
+    # Add new quality rates
+    for c in new_cols_for_summary:
+        rate_key = c.replace("_count", "_rate")
+        count_val = quality_totals.get(c)
+        if count_val is not None:
+            count_val = int(count_val or 0)
+            summary[rate_key] = count_val / total_silver_records if total_silver_records else 0.0
 
     output_file = Path(output_path)
     output_file.parent.mkdir(parents=True, exist_ok=True)

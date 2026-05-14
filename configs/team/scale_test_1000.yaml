@@ -1,0 +1,121 @@
+source: batdongsan.com.vn
+base_url: https://batdongsan.com.vn
+
+crawl_settings:
+  fetch_mode: crawl4ai
+  stop_on_block: true
+  save_images: false
+  request_delay_seconds: 2
+  concurrency: 1
+  max_pages_per_target: 2
+  max_listings_per_target: 50
+  max_retries: 1
+  retry_delay_seconds: 10
+  crawler_version: v0.1
+  parser_version: v0.1
+
+targets:
+  # District 1
+  - city_slug: tp-ha-noi
+    city_label: Hà Nội
+    location_slug: phuong-thanh-xuan
+    location_path: phuong-thanh-xuan-tp-ha-noi
+    location_label: Thanh Xuân
+    location_level: ward_or_area
+    priority_group: A
+    categories:
+      - { slug: ban-can-ho-chung-cu, label: Bán căn hộ chung cư, property_type_group: apartment, listing_business_type: sale }
+      - { slug: ban-nha-rieng, label: Bán nhà riêng, property_type_group: house, listing_business_type: sale }
+      - { slug: ban-dat, label: Bán đất, property_type_group: land, listing_business_type: sale }
+      - { slug: ban-nha-biet-thu-lien-ke, label: Bán nhà biệt thự, liền kề, property_type_group: villa_townhouse, listing_business_type: sale }
+
+  - city_slug: tp-ha-noi
+    city_label: Hà Nội
+    location_slug: phuong-cau-giay
+    location_path: phuong-cau-giay-tp-ha-noi
+    location_label: Cầu Giấy
+    location_level: ward_or_area
+    priority_group: A
+    categories:
+      - { slug: ban-can-ho-chung-cu, label: Bán căn hộ chung cư, property_type_group: apartment, listing_business_type: sale }
+      - { slug: ban-nha-rieng, label: Bán nhà riêng, property_type_group: house, listing_business_type: sale }
+      - { slug: ban-dat, label: Bán đất, property_type_group: land, listing_business_type: sale }
+      - { slug: ban-nha-biet-thu-lien-ke, label: Bán nhà biệt thự, liền kề, property_type_group: villa_townhouse, listing_business_type: sale }
+
+  - city_slug: tp-ha-noi
+    city_label: Hà Nội
+    location_slug: phuong-dong-da
+    location_path: phuong-dong-da-tp-ha-noi
+    location_label: Đống Đa
+    location_level: ward_or_area
+    priority_group: A
+    categories:
+      - { slug: ban-can-ho-chung-cu, label: Bán căn hộ chung cư, property_type_group: apartment, listing_business_type: sale }
+      - { slug: ban-nha-rieng, label: Bán nhà riêng, property_type_group: house, listing_business_type: sale }
+      - { slug: ban-dat, label: Bán đất, property_type_group: land, listing_business_type: sale }
+      - { slug: ban-nha-biet-thu-lien-ke, label: Bán nhà biệt thự, liền kề, property_type_group: villa_townhouse, listing_business_type: sale }
+
+  - city_slug: tp-ha-noi
+    city_label: Hà Nội
+    location_slug: phuong-ha-dong
+    location_path: phuong-ha-dong-tp-ha-noi
+    location_label: Hà Đông
+    location_level: ward_or_area
+    priority_group: A
+    categories:
+      - { slug: ban-can-ho-chung-cu, label: Bán căn hộ chung cư, property_type_group: apartment, listing_business_type: sale }
+      - { slug: ban-nha-rieng, label: Bán nhà riêng, property_type_group: house, listing_business_type: sale }
+      - { slug: ban-dat, label: Bán đất, property_type_group: land, listing_business_type: sale }
+      - { slug: ban-nha-biet-thu-lien-ke, label: Bán nhà biệt thự, liền kề, property_type_group: villa_townhouse, listing_business_type: sale }
+
+  - city_slug: tp-ha-noi
+    city_label: Hà Nội
+    location_slug: phuong-hoang-mai
+    location_path: phuong-hoang-mai-tp-ha-noi
+    location_label: Hoàng Mai
+    location_level: ward_or_area
+    priority_group: A
+    categories:
+      - { slug: ban-can-ho-chung-cu, label: Bán căn hộ chung cư, property_type_group: apartment, listing_business_type: sale }
+      - { slug: ban-nha-rieng, label: Bán nhà riêng, property_type_group: house, listing_business_type: sale }
+      - { slug: ban-dat, label: Bán đất, property_type_group: land, listing_business_type: sale }
+      - { slug: ban-nha-biet-thu-lien-ke, label: Bán nhà biệt thự, liền kề, property_type_group: villa_townhouse, listing_business_type: sale }
+
+  - city_slug: tp-ha-noi
+    city_label: Hà Nội
+    location_slug: phuong-tay-ho
+    location_path: phuong-tay-ho-tp-ha-noi
+    location_label: Tây Hồ
+    location_level: ward_or_area
+    priority_group: A
+    categories:
+      - { slug: ban-can-ho-chung-cu, label: Bán căn hộ chung cư, property_type_group: apartment, listing_business_type: sale }
+      - { slug: ban-nha-rieng, label: Bán nhà riêng, property_type_group: house, listing_business_type: sale }
+      - { slug: ban-dat, label: Bán đất, property_type_group: land, listing_business_type: sale }
+      - { slug: ban-nha-biet-thu-lien-ke, label: Bán nhà biệt thự, liền kề, property_type_group: villa_townhouse, listing_business_type: sale }
+
+  - city_slug: tp-ha-noi
+    city_label: Hà Nội
+    location_slug: phuong-ba-dinh
+    location_path: phuong-ba-dinh-tp-ha-noi
+    location_label: Ba Đình
+    location_level: ward_or_area
+    priority_group: A
+    categories:
+      - { slug: ban-can-ho-chung-cu, label: Bán căn hộ chung cư, property_type_group: apartment, listing_business_type: sale }
+      - { slug: ban-nha-rieng, label: Bán nhà riêng, property_type_group: house, listing_business_type: sale }
+      - { slug: ban-dat, label: Bán đất, property_type_group: land, listing_business_type: sale }
+      - { slug: ban-nha-biet-thu-lien-ke, label: Bán nhà biệt thự, liền kề, property_type_group: villa_townhouse, listing_business_type: sale }
+
+  - city_slug: tp-ha-noi
+    city_label: Hà Nội
+    location_slug: phuong-hai-ba-trung
+    location_path: phuong-hai-ba-trung-tp-ha-noi
+    location_label: Hai Bà Trưng
+    location_level: ward_or_area
+    priority_group: A
+    categories:
+      - { slug: ban-can-ho-chung-cu, label: Bán căn hộ chung cư, property_type_group: apartment, listing_business_type: sale }
+      - { slug: ban-nha-rieng, label: Bán nhà riêng, property_type_group: house, listing_business_type: sale }
+      - { slug: ban-dat, label: Bán đất, property_type_group: land, listing_business_type: sale }
+      - { slug: ban-nha-biet-thu-lien-ke, label: Bán nhà biệt thự, liền kề, property_type_group: villa_townhouse, listing_business_type: sale }

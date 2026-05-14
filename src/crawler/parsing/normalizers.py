@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 from typing import Optional
 
 
@@ -186,3 +187,166 @@ def normalize_property_type(category: Optional[str], title: Optional[str] = None
         return "street_house"
 
     return "unknown"
+
+
+def normalize_posted_date(date_str: Optional[str]) -> Optional[str]:
+    """
+    Chuyển đổi ngày tháng tiếng Việt sang ISO 8601.
+    Hỗ trợ: dd/mm/yyyy, dd-mm-yyyy, yyyy-mm-dd
+    """
+    if not date_str:
+        return None
+
+    date_str = str(date_str).strip()
+
+    formats = [
+        "%d/%m/%Y",
+        "%d-%m-%Y",
+        "%Y-%m-%d",
+    ]
+
+    for fmt in formats:
+        try:
+            parsed = datetime.strptime(date_str, fmt)
+            return parsed.strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+
+    return None
+
+
+def extract_project_from_location(location_raw: Optional[str], breadcrumb_raw: Optional[str] = None) -> Optional[str]:
+    """
+    Trích xuất tên dự án/khu đô thị từ location hoặc breadcrumb.
+    Batdongsan format breadcrumb: "Bán / Hà Nội / Thanh Xuân / Căn hộ chung cư tại Khu nhà ở 90 Nguyễn Tuân"
+    Location format: "Khu nhà ở 90 Nguyễn Tuân, Đường Nguyễn Tuân, Phường Thanh Xuân, Hà Nội"
+    """
+    if not location_raw and not breadcrumb_raw:
+        return None
+
+    candidates = []
+
+    if breadcrumb_raw:
+        match = re.search(r"tại\s+(.+?)$", str(breadcrumb_raw))
+        if match:
+            candidates.append(match.group(1).strip())
+
+    if location_raw:
+        parts = str(location_raw).split(",")
+        if parts:
+            first_part = clean_text(parts[0])
+            if first_part and len(first_part) > 3:
+                candidates.append(first_part)
+
+    for candidate in candidates:
+        if candidate and not re.match(r"^\d", candidate):
+            return candidate
+
+    if candidates:
+        return candidates[0]
+
+    return None
+
+
+def normalize_floor_count(text: Optional[str]) -> Optional[int]:
+    """
+    Trích xuất số tầng từ text như '5 tầng', 'tầng 16', 'Số tầng 3'.
+    """
+    if not text:
+        return None
+
+    text = str(text).lower()
+
+    patterns = [
+        r"số\s*tầng\s*[:\-]?\s*(\d+)",
+        r"(\d+)\s*tầng",
+        r"tầng\s*(\d+)",
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, text)
+        if match:
+            try:
+                value = int(match.group(1))
+                if 1 <= value <= 200:
+                    return value
+            except ValueError:
+                continue
+
+    return None
+
+
+def normalize_direction(text: Optional[str]) -> Optional[str]:
+    """
+    Chuẩn hóa hướng nhà/ban công.
+    """
+    if not text:
+        return None
+
+    text = str(text).lower().strip()
+
+    direction_map = {
+        "đông bắc": "Đông Bắc",
+        "đông nam": "Đông Nam",
+        "tây bắc": "Tây Bắc",
+        "tây nam": "Tây Nam",
+        "dong bac": "Đông Bắc",
+        "dong nam": "Đông Nam",
+        "tay bac": "Tây Bắc",
+        "tay nam": "Tây Nam",
+        "đông": "Đông",
+        "tây": "Tây",
+        "nam": "Nam",
+        "bắc": "Bắc",
+        "dong": "Đông",
+        "tay": "Tây",
+        "bac": "Bắc",
+    }
+
+    for key, value in direction_map.items():
+        if key in text:
+            return value
+
+    return None
+
+
+def normalize_legal_status(text: Optional[str]) -> Optional[str]:
+    """
+    Chuẩn hóa tình trạng pháp lý.
+    """
+    if not text:
+        return None
+
+    text = str(text).lower().strip()
+
+    if "sổ đỏ" in text or "sổ hồng" in text or "so do" in text or "so hong" in text:
+        return "have_certificate"
+
+    if "đang chờ" in text or "dang cho" in text or "chưa có" in text or "chua co" in text:
+        return "pending_certificate"
+
+    if "hợp đồng" in text or "hop dong" in text:
+        return "contract_only"
+
+    return "other"
+
+
+def normalize_furniture(text: Optional[str]) -> Optional[str]:
+    """
+    Chuẩn hóa tình trạng nội thất.
+    """
+    if not text:
+        return None
+
+    text = str(text).lower().strip()
+
+    if "đầy đủ" in text or "day du" in text or "full" in text:
+        return "full"
+
+    if "cơ bản" in text or "co ban" in text or "basic" in text:
+        return "basic"
+
+    if "trống" in text or "trong" in text or "không" in text or "khong" in text:
+        return "empty"
+
+    return "other"
