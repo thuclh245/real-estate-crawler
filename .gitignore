@@ -26,3 +26,6 @@ data/bronze/bronze/source=batdongsan
 
 .test_tmp/
 tests/tmp_runtime/
+docs
+.hypothesis
+.kiro
