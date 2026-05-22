@@ -12,7 +12,7 @@ data/bronze/source=batdongsan/crawl_date=2026-04-25/raw_text/*
 
 data/bronze/source=batdongsan/*
 data/silver/source=batdongsan/*
-
+data
 docs/weekly_status_2026-05-08.md
 data/gold
 data/silver/*
@@ -26,6 +26,6 @@ data/bronze/bronze/source=batdongsan
 
 .test_tmp/
 tests/tmp_runtime/
-docs
+
 .hypothesis
 .kiro
