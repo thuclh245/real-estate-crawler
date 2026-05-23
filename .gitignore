@@ -29,3 +29,5 @@ tests/tmp_runtime/
 
 .hypothesis
 .kiro
+.env
+docs

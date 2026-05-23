@@ -1,0 +1,4 @@
+# Keep Spark runtime dependencies separate from crawler/dashboard runtime.
+# Versions match the current project venv verified during Stage 1 hardening.
+pyspark==4.1.1
+py4j==0.10.9.9
