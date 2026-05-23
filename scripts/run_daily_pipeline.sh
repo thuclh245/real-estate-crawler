@@ -49,7 +49,8 @@ import json
 import os
 from pathlib import Path
 
-from observability import DailyRunSummary, DataQualityReport
+from observability import DailyRunSummary, DataQualityReport, ProductionRunSummary
+from validation.publish_gate import evaluate_publish_gate
 
 gold_summary_path = Path("data/gold/phase3_summary.json")
 gold_summary = {}
@@ -72,6 +73,37 @@ summary = DailyRunSummary().generate_summary(
     pipeline_mode=os.environ["PIPELINE_MODE"],
 )
 DailyRunSummary().write_summary(summary)
+decision = evaluate_publish_gate(
+    pipeline_mode=os.environ["PIPELINE_MODE"],
+    run_class="production" if os.environ["PIPELINE_MODE"] == "full" else "smoke",
+    pipeline_status=os.environ["PIPELINE_STATUS"],
+    validation_status=os.environ["VALIDATION_STATUS"],
+    silver_records_written=summary["total_silver_records"],
+)
+production_summary = ProductionRunSummary().generate_summary(
+    run_id=os.environ["RUN_ID"],
+    run_date=os.environ["RUN_DATE"],
+    pipeline_status=os.environ["PIPELINE_STATUS"],
+    validation_status=os.environ["VALIDATION_STATUS"],
+    start_time=os.environ["START_TIME"],
+    end_time=os.environ["END_TIME"],
+    duration_seconds=int(os.environ["DURATION_SECONDS"]),
+    pipeline_mode=os.environ["PIPELINE_MODE"],
+    run_class="production" if os.environ["PIPELINE_MODE"] == "full" else "smoke",
+    source_names=["batdongsan"],
+    crawl_ids_created=summary["crawl_ids_created"],
+    crawl_configs=summary["crawl_configs"],
+    gold_summary=gold_summary,
+    publish_status=decision.status,
+    publish_block_reason=decision.block_reason,
+    input_silver_partitions=[
+        f"source=batdongsan/crawl_date={os.environ['RUN_DATE']}/{crawl_id}"
+        for crawl_id in summary["crawl_ids_created"]
+    ],
+    published_outputs=["data/gold"] if decision.status == "published" else [],
+    error_message=os.environ.get("ERROR_MESSAGE") or None,
+)
+ProductionRunSummary().write_summary(production_summary)
 
 history = []
 for path in sorted(Path("data/logs/daily_pipeline").glob("run_date=*/daily_run_summary.json")):
@@ -162,6 +194,15 @@ IFS=',' read -r -a CRAWL_CONFIG_ARRAY <<< "$CRAWL_CONFIGS"
 if [[ "$PIPELINE_MODE" == "smoke" ]]; then
   CRAWL_CONFIG_ARRAY=("${CRAWL_CONFIG_ARRAY[0]}")
 fi
+
+PREFLIGHT_ARGS=(--run-id "$RUN_ID")
+for crawl_config in "${CRAWL_CONFIG_ARRAY[@]}"; do
+  PREFLIGHT_ARGS+=(--config "$crawl_config")
+done
+if [[ "$PIPELINE_MODE" == "full" ]]; then
+  PREFLIGHT_ARGS+=(--require-spark)
+fi
+python -m validation.preflight "${PREFLIGHT_ARGS[@]}"
 
 for crawl_config in "${CRAWL_CONFIG_ARRAY[@]}"; do
   echo "[1] Crawl + Bronze-to-Silver: $crawl_config"

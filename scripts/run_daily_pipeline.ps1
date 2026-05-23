@@ -52,7 +52,8 @@ function Write-Observability {
 import json
 import os
 from pathlib import Path
-from observability import DailyRunSummary, DataQualityReport
+from observability import DailyRunSummary, DataQualityReport, ProductionRunSummary
+from validation.publish_gate import evaluate_publish_gate
 
 gold_summary_path = Path('data/gold/phase3_summary.json')
 gold_summary = json.loads(gold_summary_path.read_text(encoding='utf-8')) if gold_summary_path.exists() else {}
@@ -72,6 +73,37 @@ summary = DailyRunSummary().generate_summary(
     pipeline_mode=os.environ['OBS_PIPELINE_MODE'],
 )
 DailyRunSummary().write_summary(summary)
+decision = evaluate_publish_gate(
+    pipeline_mode=os.environ['OBS_PIPELINE_MODE'],
+    run_class='production' if os.environ['OBS_PIPELINE_MODE'] == 'full' else 'smoke',
+    pipeline_status=os.environ['OBS_PIPELINE_STATUS'],
+    validation_status=os.environ['OBS_VALIDATION_STATUS'],
+    silver_records_written=summary['total_silver_records'],
+)
+production_summary = ProductionRunSummary().generate_summary(
+    run_id=os.environ['OBS_RUN_ID'],
+    run_date=os.environ['OBS_RUN_DATE'],
+    pipeline_status=os.environ['OBS_PIPELINE_STATUS'],
+    validation_status=os.environ['OBS_VALIDATION_STATUS'],
+    start_time=os.environ['OBS_START_TIME'],
+    end_time=os.environ['OBS_END_TIME'],
+    duration_seconds=int(os.environ['OBS_DURATION_SECONDS']),
+    pipeline_mode=os.environ['OBS_PIPELINE_MODE'],
+    run_class='production' if os.environ['OBS_PIPELINE_MODE'] == 'full' else 'smoke',
+    source_names=['batdongsan'],
+    crawl_ids_created=summary['crawl_ids_created'],
+    crawl_configs=summary['crawl_configs'],
+    gold_summary=gold_summary,
+    publish_status=decision.status,
+    publish_block_reason=decision.block_reason,
+    input_silver_partitions=[
+        f"source=batdongsan/crawl_date={os.environ['OBS_RUN_DATE']}/{crawl_id}"
+        for crawl_id in summary['crawl_ids_created']
+    ],
+    published_outputs=['data/gold'] if decision.status == 'published' else [],
+    error_message=os.environ.get('OBS_ERROR_MESSAGE') or None,
+)
+ProductionRunSummary().write_summary(production_summary)
 history = []
 for path in sorted(Path('data/logs/daily_pipeline').glob('run_date=*/daily_run_summary.json')):
     try:
@@ -131,6 +163,10 @@ try {
 
     $configs = $CrawlConfigsRaw.Split(",") | ForEach-Object { $_.Trim() } | Where-Object { $_ }
     if ($Mode -eq "smoke") { $configs = @($configs[0]) }
+    $preflightArgs = @("-m", "validation.preflight", "--run-id", $RunId)
+    foreach ($config in $configs) { $preflightArgs += @("--config", $config) }
+    if ($Mode -eq "full") { $preflightArgs += "--require-spark" }
+    python @preflightArgs *>&1 | Tee-Object -FilePath $LogFile -Append
     foreach ($config in $configs) { Invoke-CrawlAndSilver $config }
 
     if ($Mode -eq "smoke") {

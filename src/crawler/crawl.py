@@ -28,7 +28,7 @@ from crawler.fetcher import fetch_with_retry
 from crawler.parser import html_to_text, extract_phase1_stub_fields
 from common.storage import save_text_file, save_json_file, append_jsonl
 from crawler.url_builder import build_seed_url
-from common.utils import now_utc_iso, today_str
+from common.utils import get_listing_id_or_hash, now_utc_iso, today_str
 
 
 CRAWLER_VERSION = "v0.1"
@@ -659,7 +659,7 @@ def run_crawl(config_path: str):
                 if category_match_status != "matched":
                     print_warning(f"  CATEGORY AUDIT: {category_match_status} for {listing_url}")
 
-                listing_id = basic_fields.get("listing_id") or str(abs(hash(listing_url)))
+                listing_id = basic_fields.get("listing_id") or get_listing_id_or_hash(listing_url)
 
                 raw_html_path = bronze_root / "raw_html" / f"listing_id={listing_id}.html"
                 raw_text_path = bronze_root / "raw_text" / f"listing_id={listing_id}.txt"
