@@ -1,0 +1,18 @@
+[project]
+name = "real-estate-crawler"
+version = "0.1.0"
+description = "Real estate crawler and ETL pipeline"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+addopts = "--tb=short"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_unused_ignores = true

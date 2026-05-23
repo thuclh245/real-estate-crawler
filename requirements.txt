@@ -21,5 +21,3 @@ pandas==2.2.3
 # Xử lý ngày giờ nâng cao (parse, timezone, timedelta)
 python-dateutil==2.9.0.post0
 
-# Property-based tests for observability correctness properties
-hypothesis==6.100.0
