@@ -6,7 +6,7 @@ cd "$PROJECT_DIR"
 export PYTHONPATH=src
 
 if [[ -x ".venv/bin/python" ]]; then
-  exec .venv/bin/python -m validation.preflight "$@"
+  exec .venv/bin/python -m src.validation.preflight "$@"
 fi
 
-exec python -m validation.preflight "$@"
+exec python -m src.validation.preflight "$@"

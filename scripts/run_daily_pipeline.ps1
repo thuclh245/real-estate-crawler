@@ -163,7 +163,7 @@ try {
 
     $configs = $CrawlConfigsRaw.Split(",") | ForEach-Object { $_.Trim() } | Where-Object { $_ }
     if ($Mode -eq "smoke") { $configs = @($configs[0]) }
-    $preflightArgs = @("-m", "validation.preflight", "--run-id", $RunId)
+    $preflightArgs = @("-m", "src.validation.preflight", "--run-id", $RunId)
     foreach ($config in $configs) { $preflightArgs += @("--config", $config) }
     if ($Mode -eq "full") { $preflightArgs += "--require-spark" }
     python @preflightArgs *>&1 | Tee-Object -FilePath $LogFile -Append

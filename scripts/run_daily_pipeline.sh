@@ -202,7 +202,7 @@ done
 if [[ "$PIPELINE_MODE" == "full" ]]; then
   PREFLIGHT_ARGS+=(--require-spark)
 fi
-python -m validation.preflight "${PREFLIGHT_ARGS[@]}"
+python -m src.validation.preflight "${PREFLIGHT_ARGS[@]}"
 
 for crawl_config in "${CRAWL_CONFIG_ARRAY[@]}"; do
   echo "[1] Crawl + Bronze-to-Silver: $crawl_config"

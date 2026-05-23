@@ -10,7 +10,7 @@ $ProjectDir = if ($env:PROJECT_DIR) { $env:PROJECT_DIR } else { (Resolve-Path (J
 Set-Location $ProjectDir
 $env:PYTHONPATH = "src"
 
-$argsList = @("-m", "validation.preflight", "--run-id", $RunId)
+$argsList = @("-m", "src.validation.preflight", "--run-id", $RunId)
 foreach ($configPath in $Config) {
     $argsList += @("--config", $configPath)
 }
