@@ -12,7 +12,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-
 EXIT_PASS = 0
 EXIT_HARD_FAILURE = 1
 EXIT_SOFT_WARNING = 2
@@ -33,8 +32,16 @@ def run_preflight(
             f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
         ),
         _check("pythonpath_src", _src_importable(), "src import path available"),
-        _check("required_yaml", importlib.util.find_spec("yaml") is not None, "PyYAML import"),
-        _check("required_pandas", importlib.util.find_spec("pandas") is not None, "pandas import"),
+        _check(
+            "required_yaml",
+            importlib.util.find_spec("yaml") is not None,
+            "PyYAML import",
+        ),
+        _check(
+            "required_pandas",
+            importlib.util.find_spec("pandas") is not None,
+            "pandas import",
+        ),
         _check("log_path_writable", _path_writable(Path("data/logs")), "data/logs"),
     ]
 
@@ -50,8 +57,14 @@ def run_preflight(
     if require_spark:
         checks.extend(
             [
-                _check("java_runtime", shutil.which("java") is not None, "java executable"),
-                _check("pyspark_import", importlib.util.find_spec("pyspark") is not None, "pyspark import"),
+                _check(
+                    "java_runtime", shutil.which("java") is not None, "java executable"
+                ),
+                _check(
+                    "pyspark_import",
+                    importlib.util.find_spec("pyspark") is not None,
+                    "pyspark import",
+                ),
             ]
         )
 
@@ -88,6 +101,10 @@ def main() -> None:
 
 
 def _src_importable() -> bool:
+    repo_root = Path(__file__).resolve().parents[2]
+    src_path = repo_root / "src"
+    if src_path.exists() and str(src_path) not in sys.path:
+        sys.path.insert(0, str(src_path))
     if str(Path("src").resolve()) in sys.path:
         return True
     return importlib.util.find_spec("observability") is not None
@@ -102,7 +119,11 @@ def _check(name: str, passed: bool, detail: str) -> dict[str, str]:
 
 
 def _exit_code(checks: list[dict[str, str]]) -> int:
-    return EXIT_HARD_FAILURE if any(check["status"] == "fail" for check in checks) else EXIT_PASS
+    return (
+        EXIT_HARD_FAILURE
+        if any(check["status"] == "fail" for check in checks)
+        else EXIT_PASS
+    )
 
 
 def _path_writable(path: Path) -> bool:
@@ -119,7 +140,9 @@ def _path_writable(path: Path) -> bool:
 def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp_path = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-    tmp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    tmp_path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
     tmp_path.replace(path)
 
 

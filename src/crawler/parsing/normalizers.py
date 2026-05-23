@@ -6,15 +6,16 @@ def clean_text(value: Optional[str]) -> Optional[str]:
     """
     Chuẩn hóa text cơ bản:
     - None thì trả về None
-    - Xóa khoảng trắng thừa
+    - Gom khoảng trắng
+    - Strip ký tự bullet nếu có
     """
     if value is None:
         return None
 
-    value = str(value).strip()
-    value = re.sub(r"\s+", " ", value)
+    value = " ".join(str(value).split())
+    value = value.strip(" ·")
 
-    return value if value else None
+    return value or None
 
 
 def parse_vietnamese_number(text: str) -> Optional[float]:
@@ -106,9 +107,7 @@ def normalize_area(area_raw: Optional[str]) -> dict:
     """
     area_raw = clean_text(area_raw)
 
-    result = {
-        "area_m2": None
-    }
+    result = {"area_m2": None}
 
     if not area_raw:
         return result
@@ -122,9 +121,7 @@ def normalize_area(area_raw: Optional[str]) -> dict:
 
 
 def calculate_unit_price(
-    price_vnd: Optional[int],
-    area_m2: Optional[float],
-    price_unit: Optional[str] = None
+    price_vnd: Optional[int], area_m2: Optional[float], price_unit: Optional[str] = None
 ) -> Optional[float]:
     """
     Tính đơn giá VND/m2.
@@ -142,10 +139,9 @@ def calculate_unit_price(
 
     return float(price_vnd) / float(area_m2)
 
+
 def calculate_total_price(
-    price_vnd: Optional[int],
-    area_m2: Optional[float],
-    price_unit: Optional[str] = None
+    price_vnd: Optional[int], area_m2: Optional[float], price_unit: Optional[str] = None
 ) -> Optional[int]:
     """
     Tính tổng giá VND.
@@ -164,7 +160,9 @@ def calculate_total_price(
     return int(price_vnd)
 
 
-def normalize_property_type(category: Optional[str], title: Optional[str] = None) -> Optional[str]:
+def normalize_property_type(
+    category: Optional[str], title: Optional[str] = None
+) -> Optional[str]:
     """
     Chuẩn hóa loại bất động sản từ crawl_category hoặc title.
     """
@@ -179,7 +177,12 @@ def normalize_property_type(category: Optional[str], title: Optional[str] = None
     if "ban-dat" in text or "bán đất" in text:
         return "land"
 
-    if "biet-thu" in text or "biệt thự" in text or "lien-ke" in text or "liền kề" in text:
+    if (
+        "biet-thu" in text
+        or "biệt thự" in text
+        or "lien-ke" in text
+        or "liền kề" in text
+    ):
         return "villa_townhouse"
 
     if "mat-pho" in text or "mặt phố" in text:

@@ -1,0 +1,2 @@
+CRAWLER_VERSION = "v0.1"
+DEFAULT_SOURCE = "batdongsan"

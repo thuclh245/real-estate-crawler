@@ -1,17 +1,13 @@
 import argparse
 import json
 from pathlib import Path
-from datetime import datetime, timezone
 
 import pandas as pd
 
 from crawler.parsing.batdongsan_parser import parse_listing
 from crawler.parsing import extract_features
 from crawler.parsing.quality_checks import apply_quality_flags
-
-
-def now_utc_iso() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+from common.utils import now_utc_iso
 
 
 def read_text_file(path_value: str) -> str:
@@ -30,9 +26,7 @@ def read_text_file(path_value: str) -> str:
 
 
 def run_bronze_to_silver(
-    bronze_dir: str,
-    silver_dir: str,
-    parser_version: str = "phase2_v1"
+    bronze_dir: str, silver_dir: str, parser_version: str = "phase2_v1"
 ):
     bronze_path = Path(bronze_dir)
     silver_path = Path(silver_dir)
@@ -60,7 +54,7 @@ def run_bronze_to_silver(
                 raw_html=raw_html,
                 raw_text=raw_text,
                 metadata=metadata,
-                parser_version=parser_version
+                parser_version=parser_version,
             )
 
             record.update(extract_features(record))
@@ -69,11 +63,13 @@ def run_bronze_to_silver(
             records.append(record)
 
         except Exception as e:
-            errors.append({
-                "metadata_file": str(metadata_file),
-                "error_message": str(e),
-                "processed_at": now_utc_iso()
-            })
+            errors.append(
+                {
+                    "metadata_file": str(metadata_file),
+                    "error_message": str(e),
+                    "processed_at": now_utc_iso(),
+                }
+            )
 
     df = pd.DataFrame(records)
 
@@ -82,7 +78,9 @@ def run_bronze_to_silver(
         df.to_csv(silver_path / "listings.csv", index=False, encoding="utf-8-sig")
 
     error_df = pd.DataFrame(errors)
-    error_df.to_csv(silver_path / "parse_error_log.csv", index=False, encoding="utf-8-sig")
+    error_df.to_csv(
+        silver_path / "parse_error_log.csv", index=False, encoding="utf-8-sig"
+    )
 
     summary = {
         "bronze_dir": str(bronze_path),
@@ -90,21 +88,23 @@ def run_bronze_to_silver(
         "total_metadata_files": len(metadata_files),
         "total_records_parsed": len(records),
         "total_parse_errors": len(errors),
-        "parse_success_rate": len(records) / len(metadata_files) if metadata_files else 0,
+        "parse_success_rate": (
+            len(records) / len(metadata_files) if metadata_files else 0
+        ),
         "parser_version": parser_version,
-        "processed_at": now_utc_iso()
+        "processed_at": now_utc_iso(),
     }
 
     if not df.empty:
         for col in [
-        "is_missing_price",
-        "is_price_negotiable",
-        "is_missing_area",
-        "is_missing_location",
-        "is_invalid_price",
-        "is_invalid_area",
-        "is_outlier_price",
-        "is_outlier_area",
+            "is_missing_price",
+            "is_price_negotiable",
+            "is_missing_area",
+            "is_missing_location",
+            "is_invalid_price",
+            "is_invalid_area",
+            "is_outlier_price",
+            "is_outlier_area",
         ]:
             if col in df.columns:
                 summary[f"{col}_rate"] = float(df[col].mean())
@@ -119,27 +119,19 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "--bronze-dir",
-        required=True,
-        help="Path to Bronze crawl_date folder"
+        "--bronze-dir", required=True, help="Path to Bronze crawl_date folder"
     )
 
     parser.add_argument(
-        "--silver-dir",
-        required=True,
-        help="Path to output Silver folder"
+        "--silver-dir", required=True, help="Path to output Silver folder"
     )
 
-    parser.add_argument(
-        "--parser-version",
-        default="phase2_v1",
-        help="Parser version"
-    )
+    parser.add_argument("--parser-version", default="phase2_v1", help="Parser version")
 
     args = parser.parse_args()
 
     run_bronze_to_silver(
         bronze_dir=args.bronze_dir,
         silver_dir=args.silver_dir,
-        parser_version=args.parser_version
+        parser_version=args.parser_version,
     )

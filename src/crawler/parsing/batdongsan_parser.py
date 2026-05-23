@@ -1,6 +1,5 @@
 import re
 from typing import Dict, Any, Optional
-from datetime import datetime, timezone
 
 from crawler.parsing.normalizers import (
     clean_text,
@@ -10,10 +9,7 @@ from crawler.parsing.normalizers import (
     calculate_total_price,
     normalize_property_type,
 )
-
-
-def now_utc_iso() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+from common.utils import now_utc_iso
 
 
 def find_first_pattern(text: str, patterns: list[str]) -> Optional[str]:
@@ -45,7 +41,9 @@ def extract_title(raw_text: str, metadata: Dict[str, Any]) -> Optional[str]:
 
     # Heuristic đơn giản: title thường nằm ở những dòng đầu
     for line in lines[:20]:
-        if len(line) >= 15 and not line.lower().startswith(("mức giá", "diện tích", "địa chỉ")):
+        if len(line) >= 15 and not line.lower().startswith(
+            ("mức giá", "diện tích", "địa chỉ")
+        ):
             return clean_text(line)
 
     return None
@@ -78,7 +76,7 @@ def extract_price_raw(raw_text: str, metadata: Dict[str, Any]) -> Optional[str]:
         line_lower = line.lower()
 
         if line_lower in ["khoảng giá", "mức giá"]:
-            for next_line in lines[i + 1:i + 5]:
+            for next_line in lines[i + 1 : i + 5]:
                 next_lower = next_line.lower()
 
                 if (
@@ -89,7 +87,9 @@ def extract_price_raw(raw_text: str, metadata: Dict[str, Any]) -> Optional[str]:
                     return clean_text(next_line)
 
         if line_lower.startswith("khoảng giá ") or line_lower.startswith("mức giá "):
-            value = re.sub(r"^(khoảng giá|mức giá)\s*", "", line, flags=re.IGNORECASE).strip()
+            value = re.sub(
+                r"^(khoảng giá|mức giá)\s*", "", line, flags=re.IGNORECASE
+            ).strip()
             if value:
                 return clean_text(value)
 
@@ -145,13 +145,17 @@ def extract_area_raw(raw_text: str, metadata: Dict[str, Any]) -> Optional[str]:
         line_lower = line.lower()
 
         if line_lower in ["diện tích", "dien tich"]:
-            for next_line in lines[i + 1:i + 4]:
-                match = re.search(r"(\d+(?:[.,]\d+)?\s*m(?:²|2)?)", next_line, flags=re.IGNORECASE)
+            for next_line in lines[i + 1 : i + 4]:
+                match = re.search(
+                    r"(\d+(?:[.,]\d+)?\s*m(?:²|2)?)", next_line, flags=re.IGNORECASE
+                )
                 if match:
                     return clean_text(match.group(1))
 
         if line_lower.startswith("diện tích ") or line_lower.startswith("dien tich "):
-            match = re.search(r"diện tích\s+(\d+(?:[.,]\d+)?\s*m(?:²|2)?)", line, flags=re.IGNORECASE)
+            match = re.search(
+                r"diện tích\s+(\d+(?:[.,]\d+)?\s*m(?:²|2)?)", line, flags=re.IGNORECASE
+            )
             if match:
                 return clean_text(match.group(1))
 
@@ -171,7 +175,9 @@ def extract_area_raw(raw_text: str, metadata: Dict[str, Any]) -> Optional[str]:
     return None
 
 
-def extract_location_raw(raw_text: str, metadata: Dict[str, Any]) -> tuple[Optional[str], str, str]:
+def extract_location_raw(
+    raw_text: str, metadata: Dict[str, Any]
+) -> tuple[Optional[str], str, str]:
     """
     Lấy location raw.
 
@@ -209,7 +215,9 @@ def extract_location_raw(raw_text: str, metadata: Dict[str, Any]) -> tuple[Optio
     return None, "unknown", "unknown"
 
 
-def normalize_location_simple(location_raw: Optional[str], metadata: Dict[str, Any]) -> dict:
+def normalize_location_simple(
+    location_raw: Optional[str], metadata: Dict[str, Any]
+) -> dict:
     """
     Chuẩn hóa location bản đơn giản.
     Phase 2 bản đầu chưa cần quá phức tạp.
@@ -304,7 +312,7 @@ def parse_listing(
     raw_html: str,
     raw_text: str,
     metadata: Dict[str, Any],
-    parser_version: str = "phase2_v1"
+    parser_version: str = "phase2_v1",
 ) -> Dict[str, Any]:
     """
     Parse một listing từ Bronze sang record Silver.
@@ -315,8 +323,7 @@ def parse_listing(
     area_raw = extract_area_raw(raw_text, metadata)
 
     location_raw, location_parse_method, location_confidence = extract_location_raw(
-        raw_text=raw_text,
-        metadata=metadata
+        raw_text=raw_text, metadata=metadata
     )
 
     price_info = normalize_price(price_raw)
@@ -327,25 +334,19 @@ def parse_listing(
     area_m2 = area_info.get("area_m2")
 
     price_vnd = calculate_total_price(
-        price_vnd=price_vnd_raw,
-        area_m2=area_m2,
-        price_unit=price_unit
+        price_vnd=price_vnd_raw, area_m2=area_m2, price_unit=price_unit
     )
 
     unit_price_vnd_m2 = calculate_unit_price(
-        price_vnd=price_vnd_raw,
-        area_m2=area_m2,
-        price_unit=price_unit
+        price_vnd=price_vnd_raw, area_m2=area_m2, price_unit=price_unit
     )
-
 
     location_info = normalize_location_simple(location_raw, metadata)
 
     crawl_category = metadata.get("crawl_category")
-    property_type_group = metadata.get("property_type_group") or normalize_property_type(
-        category=crawl_category,
-        title=title_raw
-    )
+    property_type_group = metadata.get(
+        "property_type_group"
+    ) or normalize_property_type(category=crawl_category, title=title_raw)
 
     record = {
         # Identity / lineage
@@ -354,26 +355,22 @@ def parse_listing(
         "crawl_id": metadata.get("crawl_id"),
         "listing_id": metadata.get("listing_id"),
         "listing_url": metadata.get("listing_url"),
-
         # Raw fields
         "title_raw": title_raw,
         "description_raw": clean_text(raw_text[:3000]) if raw_text else None,
         "price_raw": price_raw,
         "area_raw": area_raw,
         "location_raw": location_raw,
-
         # Normalized price / area
         "price_value": price_info.get("price_value"),
         "price_unit": price_unit,
         "price_vnd": price_vnd,
         "area_m2": area_m2,
         "unit_price_vnd_m2": unit_price_vnd_m2,
-
         # Property type
         "property_type_raw": crawl_category,
         "property_type_group": property_type_group,
         "listing_business_type": metadata.get("listing_business_type"),
-
         # Location
         "city_raw": location_info.get("city_raw"),
         "district_raw": location_info.get("district_raw"),
@@ -385,33 +382,27 @@ def parse_listing(
         "ward_norm": location_info.get("ward_norm"),
         "location_confidence": location_confidence,
         "location_parse_method": location_parse_method,
-
         # Optional attributes
         "bedroom_count": extract_bedroom_count(raw_text),
         "bathroom_count": extract_bathroom_count(raw_text),
         "floor_count": None,
-
         # Seller metadata - Phase 2 giữ từ metadata nếu có
         "seller_type": metadata.get("seller_type"),
         "seller_years_on_platform": metadata.get("seller_years_on_platform"),
         "seller_active_listing_count": metadata.get("seller_active_listing_count"),
         "has_broker_certificate": metadata.get("has_broker_certificate"),
         "phone_masked": metadata.get("phone_masked"),
-
         # Image metadata
         "image_count": metadata.get("image_count"),
         "has_image": metadata.get("has_image"),
-
         # Dates
         "posted_date_raw": extract_posted_date_raw(raw_text, metadata),
         "expired_date_raw": metadata.get("expired_date_raw"),
         "posted_date": None,
         "expired_date": None,
-
         # Parse status
         "parse_status": "success",
         "parse_error_message": None,
-
         # Lineage paths
         "raw_html_path": metadata.get("raw_html_path"),
         "raw_text_path": metadata.get("raw_text_path"),
