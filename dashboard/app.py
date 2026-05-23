@@ -8,6 +8,7 @@ import streamlit as st
 
 GOLD_DIR = Path("data/gold")
 PIPELINE_LOG_DIR = Path("data/logs/daily_pipeline")
+PIPELINE_RUN_DIR = Path("data/logs/pipeline_runs")
 
 
 st.set_page_config(
@@ -98,6 +99,25 @@ def load_run_summaries(log_dir: Path | str = PIPELINE_LOG_DIR) -> pd.DataFrame:
     if not rows:
         return pd.DataFrame()
     return pd.DataFrame(rows)
+
+
+@st.cache_data(show_spinner=False)
+def load_latest_production_summary(run_dir: Path | str = PIPELINE_RUN_DIR) -> dict:
+    """Load the v2 latest production summary pointer when it is available."""
+    base_dir = Path(run_dir)
+    pointer_path = base_dir / "latest_production.json"
+    if not pointer_path.exists():
+        return {}
+    try:
+        pointer = json.loads(pointer_path.read_text(encoding="utf-8"))
+        summary_path = Path(pointer["summary_path"])
+        if not summary_path.is_absolute():
+            summary_path = base_dir.parent.parent.parent / summary_path
+        if not summary_path.exists():
+            return {}
+        return json.loads(summary_path.read_text(encoding="utf-8"))
+    except (KeyError, OSError, json.JSONDecodeError):
+        return {}
 
 
 def format_pct(value) -> str:
@@ -196,13 +216,19 @@ def render_pipeline_health(log_dir: Path | str = PIPELINE_LOG_DIR) -> None:
         return
 
     sort_col = "run_date" if "run_date" in summaries_df.columns else None
-    latest = summaries_df.sort_values(sort_col).tail(1).iloc[0] if sort_col else summaries_df.tail(1).iloc[0]
+    latest_production = load_latest_production_summary()
+    latest = (
+        pd.Series(latest_production)
+        if latest_production
+        else summaries_df.sort_values(sort_col).tail(1).iloc[0] if sort_col else summaries_df.tail(1).iloc[0]
+    )
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Parse Success Rate", format_pct(latest.get("parse_success_rate")))
     c2.metric("Duplicate Rate", format_pct(latest.get("duplicate_rate")))
     c3.metric("Missing Price Rate", format_pct(latest.get("missing_price_rate")))
-    c4.metric("Total Records", f"{int(latest.get('total_silver_records') or 0):,}")
+    latest_total_records = latest.get("total_silver_records") or latest.get("silver_records_written") or 0
+    c4.metric("Total Records", f"{int(latest_total_records):,}")
 
     trend_metrics = [
         "parse_success_rate",

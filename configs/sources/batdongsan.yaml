@@ -1,0 +1,26 @@
+source_code: batdongsan
+source_domain: batdongsan.com.vn
+source_type: web_listing
+is_active: true
+fetch_mode: crawl4ai
+
+crawl:
+  max_pages_per_target: 1
+  max_listings_per_target: 20
+  request_delay_seconds: 5
+  max_retries: 1
+  retry_delay_seconds: 10
+
+compatibility:
+  current_config_paths:
+    - configs/crawl_targets.yaml
+    - configs/crawl_targets_scale.yaml
+    - configs/team/priority_a_ha_noi.yaml
+    - configs/team/priority_a_ha_noi_expand_01.yaml
+
+output:
+  bronze_base_path: data/bronze
+
+quality:
+  min_expected_records: 1
+  blocking_blocked_rate: 0.5
