@@ -12,6 +12,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+repo_root = Path(__file__).resolve().parents[2]
+src_root = repo_root / "src"
+if src_root.exists() and str(src_root) not in sys.path:
+    sys.path.insert(0, str(src_root))
+
+from common.paths import bronze_dir, gold_dir, logs_dir, silver_dir
+
 EXIT_PASS = 0
 EXIT_HARD_FAILURE = 1
 EXIT_SOFT_WARNING = 2
@@ -42,7 +49,10 @@ def run_preflight(
             importlib.util.find_spec("pandas") is not None,
             "pandas import",
         ),
-        _check("log_path_writable", _path_writable(Path("data/logs")), "data/logs"),
+        _check("log_path_writable", _path_writable(logs_dir()), str(logs_dir())),
+        _check("bronze_path_writable", _path_writable(bronze_dir()), str(bronze_dir())),
+        _check("silver_path_writable", _path_writable(silver_dir()), str(silver_dir())),
+        _check("gold_path_writable", _path_writable(gold_dir()), str(gold_dir())),
     ]
 
     for config_path in config_paths or []:

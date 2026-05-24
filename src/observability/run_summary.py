@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 from typing import Any
 
+from common.paths import default_daily_logs_dir, default_pipeline_logs_dir
 
 SUMMARY_SCHEMA_VERSION = "daily_run_summary_v1"
 PRODUCTION_SUMMARY_SCHEMA_VERSION = "production_run_summary_v2"
@@ -37,6 +38,9 @@ SUMMARY_FIELDS = (
     "validation_status",
     "gcs_sync_status",
     "error_message",
+    "warnings",
+    "errors",
+    "artifact_paths",
     "start_time",
     "end_time",
     "duration_seconds",
@@ -66,6 +70,9 @@ PRODUCTION_SUMMARY_FIELDS = (
     "source_names",
     "crawl_ids_created",
     "crawl_configs",
+    "warnings",
+    "errors",
+    "artifact_paths",
     "bronze_records_written",
     "silver_records_written",
     "silver_quarantine_count",
@@ -106,10 +113,17 @@ class DailyRunSummary:
         crawl_configs: list[str] | None = None,
         crawl_ids_created: list[str] | None = None,
         pipeline_mode: str = "full",
+        warnings: list[str] | None = None,
+        errors: list[str] | None = None,
+        artifact_paths: list[str] | None = None,
     ) -> dict[str, Any]:
         """Generate a stable daily run summary from pipeline state and metrics."""
         metrics = gold_summary or {}
-        normalized_status = "failed" if pipeline_status == "failed" or error_message else pipeline_status
+        normalized_status = (
+            "failed"
+            if pipeline_status == "failed" or error_message
+            else pipeline_status
+        )
         normalized_error = error_message
         if normalized_status == "failed" and not normalized_error:
             normalized_error = "Pipeline failed"
@@ -123,6 +137,9 @@ class DailyRunSummary:
             "validation_status": str(validation_status),
             "gcs_sync_status": str(gcs_sync_status),
             "error_message": normalized_error,
+            "warnings": _to_list(warnings),
+            "errors": _to_list(errors),
+            "artifact_paths": _to_list(artifact_paths),
             "start_time": str(start_time),
             "end_time": str(end_time),
             "duration_seconds": _to_int(duration_seconds),
@@ -144,7 +161,7 @@ class DailyRunSummary:
     def write_summary(
         self,
         summary: dict[str, Any],
-        output_dir: Path | str = Path("data/logs/daily_pipeline"),
+        output_dir: Path | str = default_daily_logs_dir(),
     ) -> Path:
         """Write summary JSON to disk and print the written path."""
         run_date = summary.get("run_date")
@@ -152,9 +169,7 @@ class DailyRunSummary:
             raise ValueError("summary must contain run_date")
 
         output_path = (
-            Path(output_dir)
-            / f"run_date={run_date}"
-            / "daily_run_summary.json"
+            Path(output_dir) / f"run_date={run_date}" / "daily_run_summary.json"
         )
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(
@@ -193,12 +208,19 @@ class ProductionRunSummary:
         gold_snapshot_records: int | float | None = None,
         warehouse_fact_records: int | float | None = None,
         error_message: str | None = None,
+        warnings: list[str] | None = None,
+        errors: list[str] | None = None,
+        artifact_paths: list[str] | None = None,
     ) -> dict[str, Any]:
         """Generate a v2 summary while accepting current Gold summary metrics."""
         metrics = gold_summary or {}
         normalized_mode = str(pipeline_mode)
         normalized_run_class = run_class or _default_run_class(normalized_mode)
-        normalized_status = "failed" if pipeline_status == "failed" or error_message else str(pipeline_status)
+        normalized_status = (
+            "failed"
+            if pipeline_status == "failed" or error_message
+            else str(pipeline_status)
+        )
         total_silver_records = (
             _to_int(silver_records_written)
             if silver_records_written is not None
@@ -228,6 +250,9 @@ class ProductionRunSummary:
             "source_names": _to_list(source_names),
             "crawl_ids_created": _to_list(crawl_ids_created),
             "crawl_configs": _to_list(crawl_configs),
+            "warnings": _to_list(warnings),
+            "errors": _to_list(errors),
+            "artifact_paths": _to_list(artifact_paths),
             "bronze_records_written": _to_int(bronze_records_written),
             "silver_records_written": total_silver_records,
             "silver_quarantine_count": _to_int(silver_quarantine_count),
@@ -253,7 +278,7 @@ class ProductionRunSummary:
     def write_summary(
         self,
         summary: dict[str, Any],
-        output_dir: Path | str = Path("data/logs/pipeline_runs"),
+        output_dir: Path | str = default_pipeline_logs_dir(),
     ) -> Path:
         """Atomically write a v2 run summary and update the production pointer."""
         run_id = summary.get("run_id")
@@ -273,7 +298,7 @@ class ProductionRunSummary:
         self,
         summary: dict[str, Any],
         summary_path: Path,
-        output_dir: Path | str = Path("data/logs/pipeline_runs"),
+        output_dir: Path | str = default_pipeline_logs_dir(),
     ) -> Path:
         pointer_path = Path(output_dir) / "latest_production.json"
         pointer = {
@@ -354,9 +379,15 @@ def _default_publish_state(
     if pipeline_status != "success":
         return "blocked", publish_block_reason or f"pipeline_status={pipeline_status}"
     if validation_status not in {"pass", "passed"}:
-        return "blocked", publish_block_reason or f"validation_status={validation_status}"
+        return (
+            "blocked",
+            publish_block_reason or f"validation_status={validation_status}",
+        )
     if silver_records_written <= 0:
-        return "blocked", publish_block_reason or "full production run has zero silver records"
+        return (
+            "blocked",
+            publish_block_reason or "full production run has zero silver records",
+        )
     return "published", None
 
 
