@@ -14,11 +14,17 @@ def read_silver(spark: SparkSession, silver_base_path: str):
     silver_path = Path(silver_base_path)
     log_step(f"Reading silver data from base path: {silver_path}")
 
-    parquet_files = list(silver_path.glob("source=*/crawl_date=*/crawl_id=*/listings.parquet"))
-    log_step(f"Found {len(parquet_files)} parquet file(s) in crawl_id-partitioned layout")
+    parquet_files = list(
+        silver_path.glob("source=*/crawl_date=*/crawl_id=*/listings.parquet")
+    )
+    log_step(
+        f"Found {len(parquet_files)} parquet file(s) in crawl_id-partitioned layout"
+    )
 
     if not parquet_files:
-        log_step("No files found in crawl_id layout, falling back to legacy crawl_date layout")
+        log_step(
+            "No files found in crawl_id layout, falling back to legacy crawl_date layout"
+        )
         parquet_files = list(silver_path.glob("source=*/crawl_date=*/listings.parquet"))
         log_step(f"Found {len(parquet_files)} parquet file(s) in legacy layout")
 
@@ -52,7 +58,9 @@ def read_silver(spark: SparkSession, silver_base_path: str):
         log_step("Column 'crawl_date' is missing, extracting from input file path")
         df = df.withColumn(
             "crawl_date",
-            F.regexp_extract(F.input_file_name(), r"crawl_date=([0-9]{4}-[0-9]{2}-[0-9]{2})", 1),
+            F.regexp_extract(
+                F.input_file_name(), r"crawl_date=([0-9]{4}-[0-9]{2}-[0-9]{2})", 1
+            ),
         )
 
     if "source" not in df.columns:

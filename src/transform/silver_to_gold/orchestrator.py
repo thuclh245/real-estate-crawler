@@ -11,10 +11,13 @@ from .aggregations import (
 from .dedup import add_dedup_key, add_duplicate_flags, dedup_daily
 from .lifecycle import build_listing_lifecycle, build_removed_listings
 from .reader import read_silver
-from .snapshot import add_info_change_tracking, add_price_change_tracking, build_snapshot_table
+from .snapshot import (
+    add_info_change_tracking,
+    add_price_change_tracking,
+    build_snapshot_table,
+)
 from .spark_session import create_spark
 from .writer import write_gold_table, write_phase3_summary
-
 
 SILVER_BASE_PATH = "data/silver"
 GOLD_BASE_PATH = "data/gold"
@@ -50,13 +53,17 @@ def main():
     print("=== DUPLICATE SUMMARY ===")
     silver_df.groupBy("crawl_date").agg(
         F.count("*").alias("total_records"),
-        F.sum(F.when(F.col("is_duplicate_in_snapshot"), 1).otherwise(0)).alias("duplicate_records"),
+        F.sum(F.when(F.col("is_duplicate_in_snapshot"), 1).otherwise(0)).alias(
+            "duplicate_records"
+        ),
         F.countDistinct("dedup_key").alias("distinct_dedup_keys"),
     ).orderBy("crawl_date").show(truncate=False)
 
     print("=== DAILY DEDUP ===")
     daily_deduped_df = dedup_daily(silver_df)
-    daily_deduped_df.groupBy("crawl_date").count().orderBy("crawl_date").show(truncate=False)
+    daily_deduped_df.groupBy("crawl_date").count().orderBy("crawl_date").show(
+        truncate=False
+    )
 
     print("=== BUILD LIFECYCLE ===")
     lifecycle_df = build_listing_lifecycle(daily_deduped_df)
@@ -74,16 +81,22 @@ def main():
     removed_df = build_removed_listings(daily_deduped_df)
 
     print("=== SNAPSHOT STATUS COUNT ===")
-    snapshot_df.groupBy("snapshot_date", "snapshot_status").count().orderBy("snapshot_date", "snapshot_status").show(truncate=False)
+    snapshot_df.groupBy("snapshot_date", "snapshot_status").count().orderBy(
+        "snapshot_date", "snapshot_status"
+    ).show(truncate=False)
 
     print("=== PRICE CHANGE COUNT ===")
     snapshot_df.groupBy("snapshot_date").agg(
         F.count("*").alias("snapshot_records"),
-        F.sum(F.when(F.col("is_price_changed"), 1).otherwise(0)).alias("price_changed_count"),
+        F.sum(F.when(F.col("is_price_changed"), 1).otherwise(0)).alias(
+            "price_changed_count"
+        ),
     ).orderBy("snapshot_date").show(truncate=False)
 
     print("=== REMOVED COUNT ===")
-    removed_df.groupBy("snapshot_date", "snapshot_status").count().orderBy("snapshot_date").show(truncate=False)
+    removed_df.groupBy("snapshot_date", "snapshot_status").count().orderBy(
+        "snapshot_date"
+    ).show(truncate=False)
 
     print("=== BUILD GOLD TABLES ===")
     gold_current_df = build_gold_current_listings(snapshot_df)
@@ -102,11 +115,31 @@ def main():
 
     print("=== WRITE GOLD TABLES ===")
     write_gold_table(gold_current_df, f"{GOLD_BASE_PATH}/gold_current_listings")
-    write_gold_table(snapshot_df, f"{GOLD_BASE_PATH}/gold_listing_snapshots", partition_cols=["snapshot_date"])
-    write_gold_table(gold_market_district_df, f"{GOLD_BASE_PATH}/gold_market_by_district_daily", partition_cols=["snapshot_date"])
-    write_gold_table(gold_market_property_type_df, f"{GOLD_BASE_PATH}/gold_market_by_property_type_daily", partition_cols=["snapshot_date"])
-    write_gold_table(gold_quality_df, f"{GOLD_BASE_PATH}/gold_data_quality_daily", partition_cols=["crawl_date"])
-    write_gold_table(removed_df, f"{GOLD_BASE_PATH}/gold_removed_listings", partition_cols=["snapshot_date"])
+    write_gold_table(
+        snapshot_df,
+        f"{GOLD_BASE_PATH}/gold_listing_snapshots",
+        partition_cols=["snapshot_date"],
+    )
+    write_gold_table(
+        gold_market_district_df,
+        f"{GOLD_BASE_PATH}/gold_market_by_district_daily",
+        partition_cols=["snapshot_date"],
+    )
+    write_gold_table(
+        gold_market_property_type_df,
+        f"{GOLD_BASE_PATH}/gold_market_by_property_type_daily",
+        partition_cols=["snapshot_date"],
+    )
+    write_gold_table(
+        gold_quality_df,
+        f"{GOLD_BASE_PATH}/gold_data_quality_daily",
+        partition_cols=["crawl_date"],
+    )
+    write_gold_table(
+        removed_df,
+        f"{GOLD_BASE_PATH}/gold_removed_listings",
+        partition_cols=["snapshot_date"],
+    )
 
     print("=== WRITE PHASE 3 SUMMARY ===")
     write_phase3_summary(

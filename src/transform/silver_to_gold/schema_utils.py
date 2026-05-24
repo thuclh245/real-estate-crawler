@@ -8,7 +8,9 @@ def cast_void_columns_to_string(input_df):
     result_df = input_df
     for field in result_df.schema.fields:
         if isinstance(field.dataType, T.NullType):
-            result_df = result_df.withColumn(field.name, F.col(field.name).cast("string"))
+            result_df = result_df.withColumn(
+                field.name, F.col(field.name).cast("string")
+            )
     return result_df
 
 

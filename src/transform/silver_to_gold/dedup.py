@@ -28,7 +28,9 @@ def add_dedup_key(df):
 
     url_key = None
     if "listing_url" in df.columns:
-        normalized_url = F.lower(F.regexp_extract(F.col("listing_url").cast("string"), r"^[^?#]+", 0))
+        normalized_url = F.lower(
+            F.regexp_extract(F.col("listing_url").cast("string"), r"^[^?#]+", 0)
+        )
         normalized_url = F.regexp_replace(normalized_url, r"/+$", "")
         url_key = F.when(
             F.length(F.trim(F.col("listing_url").cast("string"))) > 0,
@@ -38,22 +40,32 @@ def add_dedup_key(df):
     fallback_string_parts = [source_col]
 
     if "title_raw" in df.columns:
-        fallback_string_parts.append(F.lower(F.trim(F.coalesce(F.col("title_raw").cast("string"), F.lit("")))))
+        fallback_string_parts.append(
+            F.lower(F.trim(F.coalesce(F.col("title_raw").cast("string"), F.lit(""))))
+        )
     else:
         fallback_string_parts.append(F.lit(""))
 
     if "district_norm" in df.columns:
-        fallback_string_parts.append(F.lower(F.trim(F.coalesce(F.col("district_norm").cast("string"), F.lit("")))))
+        fallback_string_parts.append(
+            F.lower(
+                F.trim(F.coalesce(F.col("district_norm").cast("string"), F.lit("")))
+            )
+        )
     else:
         fallback_string_parts.append(F.lit(""))
 
     if "area_m2" in df.columns:
-        fallback_string_parts.append(F.coalesce(F.col("area_m2").cast("string"), F.lit("")))
+        fallback_string_parts.append(
+            F.coalesce(F.col("area_m2").cast("string"), F.lit(""))
+        )
     else:
         fallback_string_parts.append(F.lit(""))
 
     if "price_vnd" in df.columns:
-        fallback_string_parts.append(F.coalesce(F.col("price_vnd").cast("string"), F.lit("")))
+        fallback_string_parts.append(
+            F.coalesce(F.col("price_vnd").cast("string"), F.lit(""))
+        )
     else:
         fallback_string_parts.append(F.lit(""))
 
@@ -69,24 +81,32 @@ def add_dedup_key(df):
     if id_key is not None and url_key is not None:
         dedup_method_expr = (
             F.when(id_key.isNotNull(), F.lit("listing_id"))
-             .when(url_key.isNotNull(), F.lit("listing_url"))
-             .otherwise(F.lit("content_hash"))
+            .when(url_key.isNotNull(), F.lit("listing_url"))
+            .otherwise(F.lit("content_hash"))
         )
     elif id_key is not None:
-        dedup_method_expr = F.when(id_key.isNotNull(), F.lit("listing_id")).otherwise(F.lit("content_hash"))
+        dedup_method_expr = F.when(id_key.isNotNull(), F.lit("listing_id")).otherwise(
+            F.lit("content_hash")
+        )
     elif url_key is not None:
-        dedup_method_expr = F.when(url_key.isNotNull(), F.lit("listing_url")).otherwise(F.lit("content_hash"))
+        dedup_method_expr = F.when(url_key.isNotNull(), F.lit("listing_url")).otherwise(
+            F.lit("content_hash")
+        )
     else:
         dedup_method_expr = F.lit("content_hash")
 
-    return df.withColumn("dedup_key", dedup_key_expr).withColumn("dedup_method", dedup_method_expr)
+    return df.withColumn("dedup_key", dedup_key_expr).withColumn(
+        "dedup_method", dedup_method_expr
+    )
 
 
 def add_duplicate_flags(df):
     if "dedup_key" not in df.columns:
         df = add_dedup_key(df)
 
-    duplicate_group = df.groupBy("crawl_date", "dedup_key").agg(F.count("*").alias("duplicate_group_size"))
+    duplicate_group = df.groupBy("crawl_date", "dedup_key").agg(
+        F.count("*").alias("duplicate_group_size")
+    )
     df = df.join(duplicate_group, on=["crawl_date", "dedup_key"], how="left")
     return df.withColumn("is_duplicate_in_snapshot", F.col("duplicate_group_size") > 1)
 
@@ -127,6 +147,6 @@ def dedup_daily(df):
 
     return (
         df.withColumn("dedup_row_number", F.row_number().over(window_spec))
-          .filter(F.col("dedup_row_number") == 1)
-          .drop("dedup_row_number")
+        .filter(F.col("dedup_row_number") == 1)
+        .drop("dedup_row_number")
     )

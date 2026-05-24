@@ -17,7 +17,6 @@ from .snapshot import (
 from .spark_session import create_spark, log_step
 from .writer import write_gold_table, write_phase3_summary
 
-
 __all__ = [
     "GOLD_BASE_PATH",
     "GOLD_TABLES_CREATED",
