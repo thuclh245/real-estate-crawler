@@ -10,7 +10,6 @@ from .sources.batdongsan.feature_patterns import FEATURE_PATTERNS
 from .sources.batdongsan.feature_text_utils import build_search_text, normalize_text
 from .sources.batdongsan.silver_parser import parse_listing
 
-
 __all__ = [
     "BronzeListingMetadata",
     "FEATURE_OUTPUT_KEYS",

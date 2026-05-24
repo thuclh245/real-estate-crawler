@@ -14,9 +14,8 @@ def apply_quality_flags(record: Dict[str, Any]) -> Dict[str, Any]:
     city_norm = record.get("city_norm")
 
     # Price flags
-    record["is_price_negotiable"] = (
-        price_unit == "negotiable"
-        or bool(record.get("is_price_negotiable"))
+    record["is_price_negotiable"] = price_unit == "negotiable" or bool(
+        record.get("is_price_negotiable")
     )
     record["is_missing_price"] = price_vnd is None and not record["is_price_negotiable"]
 

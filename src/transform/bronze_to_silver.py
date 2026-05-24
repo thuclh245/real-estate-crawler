@@ -74,14 +74,20 @@ def run_bronze_to_silver(
                         or metadata.get("listing_url")
                         or metadata_file.stem
                     ),
-                    error_message=str(record.get("parse_error_message") or "parse failed"),
+                    error_message=str(
+                        record.get("parse_error_message") or "parse failed"
+                    ),
                     parser_version=parser_version,
                     raw_reference_path=str(
                         metadata.get("raw_text_path")
                         or metadata.get("raw_html_path")
                         or metadata_file
                     ),
-                    extra={"metadata_path": str(metadata.get("metadata_path") or metadata_file)},
+                    extra={
+                        "metadata_path": str(
+                            metadata.get("metadata_path") or metadata_file
+                        )
+                    },
                 )
                 quarantine_path = append_quarantine_record(
                     quarantine_record,

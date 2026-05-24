@@ -5,7 +5,6 @@ from typing import Any, Callable
 from .feature_patterns import FEATURE_PATTERNS
 from .feature_text_utils import build_search_text
 
-
 logger = logging.getLogger(__name__)
 
 FEATURE_OUTPUT_KEYS = [
@@ -53,7 +52,9 @@ def _valid_int(value: str | int | None, minimum: int, maximum: int) -> int | Non
     return parsed if minimum <= parsed <= maximum else None
 
 
-def _valid_float(value: str | float | None, minimum: float, maximum: float) -> float | None:
+def _valid_float(
+    value: str | float | None, minimum: float, maximum: float
+) -> float | None:
     if value is None:
         return None
     try:
@@ -71,7 +72,9 @@ def _truncate_words(value: str, max_chars: int) -> str:
     return truncated or value[:max_chars].strip()
 
 
-def _first_match(patterns: list[tuple[str, re.Pattern]], text: str) -> tuple[str, re.Match] | None:
+def _first_match(
+    patterns: list[tuple[str, re.Pattern]], text: str
+) -> tuple[str, re.Match] | None:
     matches = []
     for name, pattern in patterns:
         match = pattern.search(text)
@@ -195,7 +198,9 @@ def extract_location_context(search_text: str) -> dict[str, bool]:
         "has_security_flag": bool(patterns["security"].search(search_text or "")),
         "has_educated_community_flag": high_intellect,
         "has_high_intellect_flag": high_intellect,
-        "has_residential_area_flag": bool(patterns["residential"].search(search_text or "")),
+        "has_residential_area_flag": bool(
+            patterns["residential"].search(search_text or "")
+        ),
         "has_subdivision_flag": bool(patterns["subdivision"].search(search_text or "")),
     }
 
@@ -220,7 +225,7 @@ def extract_negotiable_price(search_text: str) -> bool:
     pattern = FEATURE_PATTERNS["negotiable_price"]["keywords"]
     negation = FEATURE_PATTERNS["negotiable_price"]["negation_window"]
     for match in pattern.finditer(text):
-        prefix = text[:match.start()].split()
+        prefix = text[: match.start()].split()
         window = " ".join(prefix[-3:]) + " " if prefix else ""
         if negation.search(window):
             continue
@@ -277,7 +282,9 @@ def extract_features(listing_row: dict | None) -> dict[str, Any]:
     result["seller_type"] = _run(
         "seller_type", lambda: extract_seller_type(search_text)
     ) or listing_row.get("seller_type")
-    result["furniture_level"] = _run("furniture_level", lambda: extract_furniture_level(search_text))
+    result["furniture_level"] = _run(
+        "furniture_level", lambda: extract_furniture_level(search_text)
+    )
     result["bathroom_count"] = listing_row.get("bathroom_count") or _run(
         "bathroom_count", lambda: extract_bathroom_count(search_text)
     )
@@ -288,19 +295,27 @@ def extract_features(listing_row: dict | None) -> dict[str, Any]:
         "business_suitability", lambda: extract_business_suitability(search_text), False
     )
 
-    location_context = _run("location_context", lambda: extract_location_context(search_text), {})
+    location_context = _run(
+        "location_context", lambda: extract_location_context(search_text), {}
+    )
     result.update(location_context)
 
     result["direction"] = _run("direction", lambda: extract_direction(search_text))
     result["is_price_negotiable"] = _run(
         "negotiable_price", lambda: extract_negotiable_price(search_text), False
     )
-    result["building_name"] = _run("building_name", lambda: extract_building_name(raw_text))
+    result["building_name"] = _run(
+        "building_name", lambda: extract_building_name(raw_text)
+    )
 
     if "floor_count" not in skip_set:
-        result["floor_count"] = _run("floor_count", lambda: extract_floor_count(search_text))
+        result["floor_count"] = _run(
+            "floor_count", lambda: extract_floor_count(search_text)
+        )
     if "frontage_width" not in skip_set:
-        result["frontage_width"] = _run("frontage_width", lambda: extract_frontage_width(search_text))
+        result["frontage_width"] = _run(
+            "frontage_width", lambda: extract_frontage_width(search_text)
+        )
     if "bedroom_count" not in skip_set:
         result["bedroom_count"] = listing_row.get("bedroom_count") or _run(
             "bedroom_count", lambda: extract_bedroom_count(search_text)

@@ -8,8 +8,13 @@ warnings.warn(
     stacklevel=2,
 )
 
-from parsing import FEATURE_OUTPUT_KEYS, FEATURE_PATTERNS, build_search_text, extract_features, normalize_text
-
+from parsing import (
+    FEATURE_OUTPUT_KEYS,
+    FEATURE_PATTERNS,
+    build_search_text,
+    extract_features,
+    normalize_text,
+)
 
 __all__ = [
     "FEATURE_OUTPUT_KEYS",

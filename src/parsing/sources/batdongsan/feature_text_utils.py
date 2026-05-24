@@ -3,7 +3,6 @@ import re
 import unicodedata
 from typing import Any
 
-
 TEXT_FIELDS = [
     "title_raw",
     "description_raw",
@@ -30,9 +29,7 @@ def normalize_text(text: str | None) -> str:
 
     value = str(text).lower()
     value = unicodedata.normalize("NFD", value)
-    value = "".join(
-        char for char in value if unicodedata.category(char) != "Mn"
-    )
+    value = "".join(char for char in value if unicodedata.category(char) != "Mn")
     value = value.replace("đ", "d").replace("Đ", "d")
     value = (
         value.replace("²", "2")

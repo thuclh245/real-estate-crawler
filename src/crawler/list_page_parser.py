@@ -61,7 +61,9 @@ def extract_listing_entries_from_listing_page(html: str) -> list[dict]:
                 clean_text(area_el.get_text(" ", strip=True)) if area_el else None
             ),
             "listing_card_location_raw": location_raw,
-            "listing_card_old_district_raw": parse_listing_card_old_district(location_raw),
+            "listing_card_old_district_raw": parse_listing_card_old_district(
+                location_raw
+            ),
             "listing_card_description": (
                 clean_text(description_el.get_text(" ", strip=True))
                 if description_el
