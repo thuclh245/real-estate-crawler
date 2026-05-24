@@ -2,7 +2,8 @@ import argparse
 import json
 from pathlib import Path
 
-BRONZE_ROOT = Path("data") / "bronze" / "source=batdongsan"
+REPO_ROOT = Path(__file__).resolve().parents[2]
+BRONZE_ROOT = REPO_ROOT / "data" / "bronze" / "source=batdongsan"
 
 
 def load_json(path: Path) -> dict:

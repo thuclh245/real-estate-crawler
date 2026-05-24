@@ -83,7 +83,7 @@ Tập hợp mô tả ngắn gọn cho các thư mục rồi đi sâu vào chức
 - PySpark job: `create_spark()`, `read_silver()`, `add_dedup_key()`, `build_listing_lifecycle()`, `ensure_columns()` và nhiều bước chuyển đổi/aggregate.
 - Mục đích: từ Silver tạo các bảng Gold: `gold_current_listings`, `gold_listing_snapshots`, `gold_market_by_district_daily`, `gold_market_by_property_type_daily`, `gold_data_quality_daily`, `gold_removed_listings`.
 
-`src/validation/check_phase3.py`
+`src/validation/check_gold_readiness.py`
 
 - Kiểm tra `phase3_summary.json` và các bảng Gold tồn tại, có các cột tối thiểu và số lượng hàng mong đợi. Hàm entrypoint `main()` thực hiện validation dùng Spark.
 

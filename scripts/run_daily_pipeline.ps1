@@ -7,6 +7,8 @@ $ErrorActionPreference = "Stop"
 if ([string]::IsNullOrWhiteSpace($Mode)) { $Mode = "full" }
 
 $ProjectDir = if ($env:PROJECT_DIR) { $env:PROJECT_DIR } else { (Resolve-Path (Join-Path $PSScriptRoot "..")).Path }
+$PythonExe = Join-Path $ProjectDir ".venv\Scripts\python.exe"
+if (-not (Test-Path $PythonExe)) { $PythonExe = "python" }
 $Bucket = if ($env:GCS_BUCKET) { $env:GCS_BUCKET } else { "gs://bigdata-subject-real-estate-lakehouse" }
 $CrawlConfigsRaw = if ($env:CRAWL_CONFIGS) { $env:CRAWL_CONFIGS } else { "configs/team/priority_a_ha_noi.yaml,configs/team/priority_a_ha_noi_expand_01.yaml" }
 $CrawlDate = if ($env:CRAWL_DATE) { $env:CRAWL_DATE } else { Get-Date -Format "yyyy-MM-dd" }
@@ -55,7 +57,7 @@ function Write-Observability {
     $env:OBS_CRAWL_CONFIGS = $CrawlConfigsRaw
     $env:OBS_CRAWL_IDS_CREATED = ($CrawlIdsCreated -join ",")
 
-    python -c @"
+    & $PythonExe -c @"
 import json
 import os
 from pathlib import Path
@@ -149,7 +151,7 @@ function Invoke-CrawlAndSilver {
     if (Test-Path $BronzeDateDir) {
         $before = Get-ChildItem $BronzeDateDir -Directory | ForEach-Object { $_.FullName }
     }
-    python -m crawler.crawl --config $ConfigPath *>&1 | Tee-Object -FilePath $LogFile -Append
+    & $PythonExe -m crawler.crawl --config $ConfigPath *>&1 | Tee-Object -FilePath $LogFile -Append
     Assert-NativeSuccess "crawl step"
     $after = @()
     if (Test-Path $BronzeDateDir) {
@@ -160,7 +162,7 @@ function Invoke-CrawlAndSilver {
     foreach ($bronzeDir in $newDirs) {
         $crawlId = Split-Path $bronzeDir -Leaf
         $CrawlIdsCreated.Add($crawlId) | Out-Null
-        python -m transform.bronze_to_silver --bronze-dir $bronzeDir --silver-dir (Join-Path $SilverDateDir $crawlId) *>&1 | Tee-Object -FilePath $LogFile -Append
+        & $PythonExe -m transform.bronze_to_silver --bronze-dir $bronzeDir --silver-dir (Join-Path $SilverDateDir $crawlId) *>&1 | Tee-Object -FilePath $LogFile -Append
         Assert-NativeSuccess "bronze-to-silver step for $crawlId"
     }
 }
@@ -176,7 +178,7 @@ try {
     $preflightArgs = @("-m", "src.validation.preflight", "--run-id", $RunId, "--output-dir", (Join-Path $ProjectDir "data\logs\preflight"))
     foreach ($config in $configs) { $preflightArgs += @("--config", $config) }
     if ($Mode -eq "full") { $preflightArgs += "--require-spark" }
-    python @preflightArgs *>&1 | Tee-Object -FilePath $LogFile -Append
+    & $PythonExe @preflightArgs *>&1 | Tee-Object -FilePath $LogFile -Append
     Assert-NativeSuccess "preflight"
     foreach ($config in $configs) { Invoke-CrawlAndSilver $config }
 
@@ -189,12 +191,12 @@ try {
     }
 
     Write-Log "[2] Silver-to-Gold"
-    python -m transform.silver_to_gold *>&1 | Tee-Object -FilePath $LogFile -Append
+    & $PythonExe -m transform.silver_to_gold *>&1 | Tee-Object -FilePath $LogFile -Append
     Assert-NativeSuccess "silver-to-gold"
 
     Write-Log "[3] Validation"
     $script:ValidationStatus = "running"
-    python -m validation.check_phase3 *>&1 | Tee-Object -FilePath $LogFile -Append
+    & $PythonExe -m validation.check_gold_readiness *>&1 | Tee-Object -FilePath $LogFile -Append
     Assert-NativeSuccess "validation"
     $script:ValidationStatus = "pass"
 

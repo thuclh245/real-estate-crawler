@@ -15,9 +15,9 @@ from validation.preflight import EXIT_HARD_FAILURE, EXIT_PASS, run_preflight
 from validation.publish_gate import evaluate_publish_gate
 
 
-class Stage1ProductionFoundationTest(unittest.TestCase):
+class ProductionFoundationTest(unittest.TestCase):
     def setUp(self):
-        self.base_dir = ROOT / "tests" / "tmp_runtime" / "stage1" / uuid4().hex
+        self.base_dir = ROOT / "tests" / "tmp_runtime" / "production_foundation" / uuid4().hex
 
     def tearDown(self):
         shutil.rmtree(self.base_dir, ignore_errors=True)

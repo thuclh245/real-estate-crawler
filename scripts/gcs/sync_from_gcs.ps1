@@ -1,3 +1,6 @@
+$ProjectDir = if ($env:PROJECT_DIR) { $env:PROJECT_DIR } else { (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path }
+Set-Location $ProjectDir
+
 $BUCKET = $env:GCS_BUCKET
 if (-not $BUCKET) {
 	$BUCKET = "gs://bigdata-subject-real-estate-lakehouse"

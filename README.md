@@ -695,7 +695,7 @@ $env:PYTHONPATH = "src"
 .\.venv\Scripts\python.exe -m transform.bronze_to_silver --bronze-dir data\bronze\source=batdongsan\crawl_date=YYYY-MM-DD\crawl_id=<crawl_id> --silver-dir data\silver\source=batdongsan\crawl_date=YYYY-MM-DD\crawl_id=<crawl_id>
 ```
 
-Phase 3 Gold should be run on Linux/VM because it uses Spark.
+Gold transformation should be run on Linux/VM because it uses Spark.
 
 Linux/macOS Bash:
 
@@ -708,7 +708,7 @@ python -m transform.bronze_to_silver --bronze-dir data/bronze/source=batdongsan/
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 export PATH="$JAVA_HOME/bin:$PATH"
 python -m transform.silver_to_gold
-python -m validation.check_phase3
+python -m validation.check_gold_readiness
 ```
 
 After producing new data:
@@ -743,19 +743,19 @@ Reason: Bronze/Silver uploads are append-friendly, but Gold sync uses `--delete-
 
 On a Google Cloud VM, attach the service account to the VM so code can access Cloud Storage without downloading a JSON key file.
 
-### 7. Phase 3 Gold Outputs
+### 7. Gold Outputs
 
-Run Phase 3:
+Run Gold transformation:
 
 Linux/macOS Bash:
 
 ```bash
 export PYTHONPATH=src
 python -m transform.silver_to_gold
-python -m validation.check_phase3
+python -m validation.check_gold_readiness
 ```
 
-Phase 3 is Spark-based. Prefer running this step on Linux/VM instead of Windows.
+Gold transformation is Spark-based. Prefer running this step on Linux/VM instead of Windows.
 
 Gold outputs:
 
@@ -834,17 +834,17 @@ If code changes add new Gold columns such as `is_info_changed` or `changed_field
 ```bash
 export PYTHONPATH=src
 python -m transform.silver_to_gold
-python -m validation.check_phase3
+python -m validation.check_gold_readiness
 ```
 
-`validation.check_phase3` is the official Phase 3 validation checklist. If it prints `PASS: Phase 3 validation checklist`, the Gold layer is ready for report/dashboard use.
+`validation.check_gold_readiness` is the official Gold readiness validation checklist. If it prints `PASS: Gold readiness validation checklist`, the Gold layer is ready for report/dashboard use.
 
 The validation also protects against stale Gold parquet files. For example, if `phase3_summary.json` says `total_current_listings = 1541` but `gold_current_listings/` contains old parquet files and reads as a larger count, validation fails. In that case, regenerate Gold on Linux/VM and sync Gold with delete mode:
 
 ```bash
 export PYTHONPATH=src
 python -m transform.silver_to_gold
-python -m validation.check_phase3
+python -m validation.check_gold_readiness
 gcloud storage rsync --recursive --delete-unmatched-destination-objects --exclude=".*\.crc$" data/gold gs://bigdata-subject-real-estate-lakehouse/gold
 ```
 
@@ -925,9 +925,9 @@ data/gold/gold_data_quality_daily/
 data/gold/gold_removed_listings/
 ```
 
-Use dashboard screenshots in the report/demo after running Phase 3 and validating Gold.
+Use dashboard screenshots in the report/demo after regenerating and validating Gold.
 
-### 9. Phase 5 Pipeline Orchestration
+### 9. Pipeline Orchestration
 
 ```text
 src/transform/silver_to_gold.py
@@ -936,23 +936,23 @@ src/transform/silver_to_gold.py
 Do not create a duplicate `silver_to_gold_spark.py` unless the transformation logic is genuinely different. The canonical validation remains:
 
 ```text
-src/validation/check_phase3.py
+src/validation/check_gold_readiness.py
 ```
 
 Linux / Google Cloud VM is the official Spark runtime:
 
 ```bash
-chmod +x scripts/run_phase5_pipeline_linux.sh
-./scripts/run_phase5_pipeline_linux.sh
+chmod +x scripts/run_daily_pipeline.sh
+./scripts/run_daily_pipeline.sh
 ```
 
 Windows helper script:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\run_phase5_pipeline_windows.ps1
+powershell -ExecutionPolicy Bypass -File scripts\run_local_gold_validation.ps1
 ```
 
-Phase 5 writes execution logs to:
+Pipeline scripts write execution logs to:
 
 ```text
 Linux daily pipeline:
@@ -960,7 +960,7 @@ Linux daily pipeline:
   data/logs/daily_pipeline/run_date=YYYY-MM-DD/daily_run_summary.json
 
 Windows helper:
-  data/logs/phase5_spark/
+  data/logs/gold_validation/
 ```
 
 The Linux daily pipeline writes a structured run summary after each run:
@@ -998,7 +998,7 @@ cat data/logs/daily_pipeline/run_date=$(date -d "yesterday" +%Y-%m-%d)/daily_run
 
 This is useful when running on a VM that processes the previous day's data with a one-day delay. Replace `yesterday` with a specific date like `2026-05-01` if needed.
 
-Phase 5 completion checklist:
+Pipeline completion checklist:
 
 ```text
 [ ] Scheduled Google Compute Engine VM starts successfully
@@ -1007,7 +1007,7 @@ Phase 5 completion checklist:
 [ ] Bronze-to-Silver parser writes Silver listings
 [ ] Spark Silver-to-Gold job completes
 [ ] Gold Parquet tables are regenerated
-[ ] validation.check_phase3 passes
+[ ] validation.check_gold_readiness passes
 [ ] Bronze/Silver/Gold/logs sync to GCS
 [ ] Gold sync removes stale parquet files from previous Gold runs
 [ ] Dashboard reads validated Gold tables
@@ -1017,7 +1017,7 @@ Phase 5 completion checklist:
 Report wording:
 
 ```text
-Phase 5 focuses on cloud-scheduled pipeline orchestration and Spark runtime validation. Since the Gold transformation module has already been implemented using PySpark, this phase does not duplicate the transformation logic. Instead, it standardizes the execution workflow on a scheduled Google Compute Engine VM, runs the crawler, Bronze-to-Silver parser, Spark-based Silver-to-Gold ETL job, validates the generated Gold tables, and stores execution logs for reproducibility and auditing.
+The pipeline orchestration work standardizes the execution workflow on a scheduled Google Compute Engine VM, runs the crawler, Bronze-to-Silver parser, Spark-based Silver-to-Gold ETL job, validates the generated Gold tables, and stores execution logs for reproducibility and auditing.
 ```
 
 ### 10. Current Project Flow
@@ -1027,7 +1027,7 @@ Scheduled Google Compute Engine VM
   -> Crawl Bronze
   -> Bronze-to-Silver
   -> Silver-to-Gold with Spark
-  -> validation.check_phase3
+  -> validation.check_gold_readiness
   -> Sync Bronze/Silver/Gold/logs to GCS
   -> Dashboard reads Gold
 ```
@@ -1043,7 +1043,7 @@ Implemented:
   Daily scheduled VM pipeline
   GCS sync for Bronze/Silver/Gold/logs
   Streamlit dashboard over Gold
-  Phase 3 Gold validation
+  Gold readiness validation
 
 Optional future work:
   BigQuery + Looker Studio serving layer

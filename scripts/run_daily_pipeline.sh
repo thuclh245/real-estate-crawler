@@ -223,7 +223,7 @@ python -m transform.silver_to_gold
 
 echo "[3] Validation"
 VALIDATION_STATUS="running"
-python -m validation.check_phase3
+python -m validation.check_gold_readiness
 VALIDATION_STATUS="pass"
 
 if [[ "$VALIDATION_STATUS" != "pass" ]]; then

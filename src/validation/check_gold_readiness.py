@@ -65,7 +65,7 @@ def fail(message: str) -> None:
     raise SystemExit(f"FAIL: {message}")
 
 
-def load_phase3_summary() -> dict:
+def load_gold_summary() -> dict:
     summary_path = GOLD_BASE_PATH / "phase3_summary.json"
     if not summary_path.exists():
         fail(f"Missing {summary_path}")
@@ -75,15 +75,15 @@ def load_phase3_summary() -> dict:
 def create_spark() -> SparkSession:
     return (
         SparkSession.builder
-        .appName("CheckPhase3")
+        .appName("CheckGoldReadiness")
         .master("local[*]")
         .config("spark.sql.session.timeZone", "Asia/Ho_Chi_Minh")
         .getOrCreate()
     )
 
 
-def check_phase3_summary() -> None:
-    summary = load_phase3_summary()
+def check_gold_summary() -> None:
+    summary = load_gold_summary()
     required_keys = [
         "total_silver_records",
         "total_current_listings",
@@ -138,7 +138,7 @@ def collect_date_values(df, column_name: str) -> set[str]:
 
 
 def check_gold_tables(spark: SparkSession) -> None:
-    summary = load_phase3_summary()
+    summary = load_gold_summary()
     expected_snapshot_dates = set(str(value) for value in summary.get("snapshot_dates", []))
 
     for table_name, rule in REQUIRED_TABLES.items():
@@ -199,12 +199,12 @@ def check_gold_tables(spark: SparkSession) -> None:
 def main() -> None:
     spark = create_spark()
     try:
-        check_phase3_summary()
+        check_gold_summary()
         check_gold_tables(spark)
     finally:
         spark.stop()
 
-    print("PASS: Phase 3 validation checklist")
+    print("PASS: Gold readiness validation checklist")
 
 
 if __name__ == "__main__":

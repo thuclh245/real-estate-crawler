@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BUCKET="gs://bigdata-subject-real-estate-lakehouse"
+PROJECT_DIR="${PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+cd "$PROJECT_DIR"
+
+BUCKET="${GCS_BUCKET:-gs://bigdata-subject-real-estate-lakehouse}"
 
 CRAWL_DATE="${CRAWL_DATE:-}"
 CRAWL_ID="${CRAWL_ID:-}"
