@@ -6,7 +6,6 @@ from typing import TypedDict
 
 from common.schema import BronzeMetadata, QuarantineRecord, RunSummary, SilverRecord
 
-
 BronzeListingMetadata = BronzeMetadata
 SilverListingRecord = SilverRecord
 
