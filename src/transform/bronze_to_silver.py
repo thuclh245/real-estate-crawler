@@ -4,10 +4,10 @@ from pathlib import Path
 
 import pandas as pd
 
-from crawler.parsing.batdongsan_parser import parse_listing
-from crawler.parsing import extract_features
-from crawler.parsing.quality_checks import apply_quality_flags
+from common.quarantine import append_quarantine_record, build_quarantine_record
 from common.utils import now_utc_iso
+from parsing import extract_features, parse_listing
+from parsing.quality import apply_quality_flags
 
 
 def read_text_file(path_value: str) -> str:
@@ -42,6 +42,8 @@ def run_bronze_to_silver(
 
     records = []
     errors = []
+    quarantined = []
+    run_id = f"bronze_to_silver_{now_utc_iso().replace(':', '').replace('-', '').replace('+', '_')}"
 
     for metadata_file in metadata_files:
         try:
@@ -59,6 +61,33 @@ def run_bronze_to_silver(
 
             record.update(extract_features(record))
             record = apply_quality_flags(record)
+
+            if record.get("parse_status") == "failed":
+                quarantine_record = build_quarantine_record(
+                    run_id=run_id,
+                    source_code=str(metadata.get("source") or "unknown"),
+                    rejection_stage="bronze_to_silver",
+                    rejection_reason="parse_failed",
+                    input_path=str(metadata_file),
+                    record_identity=str(
+                        metadata.get("listing_id")
+                        or metadata.get("listing_url")
+                        or metadata_file.stem
+                    ),
+                    error_message=str(record.get("parse_error_message") or "parse failed"),
+                    parser_version=parser_version,
+                    raw_reference_path=str(
+                        metadata.get("raw_text_path")
+                        or metadata.get("raw_html_path")
+                        or metadata_file
+                    ),
+                    extra={"metadata_path": str(metadata.get("metadata_path") or metadata_file)},
+                )
+                quarantine_path = append_quarantine_record(
+                    quarantine_record,
+                    run_date=str(metadata.get("crawl_date") or now_utc_iso()[:10]),
+                )
+                quarantined.append(str(quarantine_path))
 
             records.append(record)
 
@@ -88,6 +117,7 @@ def run_bronze_to_silver(
         "total_metadata_files": len(metadata_files),
         "total_records_parsed": len(records),
         "total_parse_errors": len(errors),
+        "total_quarantined_records": len(quarantined),
         "parse_success_rate": (
             len(records) / len(metadata_files) if metadata_files else 0
         ),
