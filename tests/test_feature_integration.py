@@ -11,7 +11,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 import pandas as pd
 
-from crawler.parsing import FEATURE_OUTPUT_KEYS
+from parsing import FEATURE_OUTPUT_KEYS
 from transform.bronze_to_silver import run_bronze_to_silver
 
 

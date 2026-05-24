@@ -7,7 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from crawler.parsing.feature_text_utils import build_search_text, normalize_text
+from parsing.sources.batdongsan.feature_text_utils import build_search_text, normalize_text
 
 
 class FeatureTextUtilsTest(unittest.TestCase):

@@ -851,7 +851,7 @@ class CrawlOrchestrator:
         print(json.dumps(summary, ensure_ascii=False, indent=2))
         print(f"Location audit: {location_audit_path}")
         print(f"Audit sample CSV: {audit_sample_path}")
-        print(f"Audit command: python scripts\\audit_bronze.py --crawl-id {crawl_id}")
+        print(f"Audit command: python scripts\\tools\\audit_bronze.py --crawl-id {crawl_id}")
 
         return summary
 

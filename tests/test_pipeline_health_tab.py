@@ -5,11 +5,10 @@ import unittest
 from pathlib import Path
 from uuid import uuid4
 
-
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from dashboard.app import load_run_summaries
+from dashboard.data_loaders import load_latest_production_summary, load_run_summaries
 
 
 class PipelineHealthTabTest(unittest.TestCase):
@@ -63,6 +62,31 @@ class PipelineHealthTabTest(unittest.TestCase):
 
         self.assertEqual(len(df), 1)
         self.assertEqual(df.iloc[0]["run_date"], "2026-05-14")
+
+    def test_load_latest_production_summary_prefers_pointer(self):
+        run_dir = self.base_dir / "pipeline_runs"
+        summary_path = run_dir / "run_date=2026-05-20" / "daily_run_summary.json"
+        summary_path.parent.mkdir(parents=True, exist_ok=True)
+        summary_path.write_text(
+            json.dumps(
+                {
+                    "run_id": "prod_20260520_180000",
+                    "run_date": "2026-05-20",
+                    "parse_success_rate": 0.99,
+                }
+            ),
+            encoding="utf-8",
+        )
+        pointer_path = run_dir / "latest_production.json"
+        pointer_path.write_text(
+            json.dumps({"summary_path": str(summary_path.relative_to(run_dir))}),
+            encoding="utf-8",
+        )
+
+        payload = load_latest_production_summary(run_dir)
+
+        self.assertEqual(payload["run_id"], "prod_20260520_180000")
+        self.assertEqual(payload["parse_success_rate"], 0.99)
 
 
 if __name__ == "__main__":

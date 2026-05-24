@@ -6,7 +6,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from crawler.parsing import FEATURE_OUTPUT_KEYS, extract_features
+from parsing import FEATURE_OUTPUT_KEYS, extract_features
 
 
 class FeatureOrchestratorTest(unittest.TestCase):

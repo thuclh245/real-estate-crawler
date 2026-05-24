@@ -297,13 +297,13 @@ After each run, the crawler prints the `crawl_id` and an audit command. Run:
 Windows PowerShell:
 
 ```powershell
-python scripts\audit_bronze.py --crawl-id <crawl_id>
+python scripts\tools\audit_bronze.py --crawl-id <crawl_id>
 ```
 
 Linux/macOS Bash:
 
 ```bash
-python scripts/audit_bronze.py --crawl-id <crawl_id>
+python scripts/tools/audit_bronze.py --crawl-id <crawl_id>
 ```
 
 Go if:

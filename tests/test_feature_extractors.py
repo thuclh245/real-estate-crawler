@@ -6,7 +6,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from crawler.parsing.feature_extractors import (
+from parsing.sources.batdongsan.feature_extractor import (
     extract_car_access,
     extract_direction,
     extract_floor_count,
