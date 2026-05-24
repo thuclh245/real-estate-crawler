@@ -12,7 +12,7 @@ $CrawlConfigsRaw = if ($env:CRAWL_CONFIGS) { $env:CRAWL_CONFIGS } else { "config
 $CrawlDate = if ($env:CRAWL_DATE) { $env:CRAWL_DATE } else { Get-Date -Format "yyyy-MM-dd" }
 $SyncToGcs = if ($env:SYNC_TO_GCS) { $env:SYNC_TO_GCS } else { "false" }
 
-$RunId = "daily_" + (Get-Date -Format "yyyyMMdd_HHmmss")
+$RunId = if ($env:RUN_ID) { $env:RUN_ID } else { "daily_" + (Get-Date -Format "yyyyMMdd_HHmmss") }
 $LogDir = Join-Path $ProjectDir "data\logs\daily_pipeline"
 $LogFile = Join-Path $LogDir "$RunId.log"
 $BronzeDateDir = Join-Path $ProjectDir "data\bronze\source=batdongsan\crawl_date=$CrawlDate"
@@ -30,6 +30,13 @@ $env:PYTHONPATH = "src"
 function Write-Log {
     param([string]$Message)
     $Message | Tee-Object -FilePath $LogFile -Append
+}
+
+function Assert-NativeSuccess {
+    param([string]$Step)
+    if ($LASTEXITCODE -ne 0) {
+        throw "$Step failed with exit code $LASTEXITCODE"
+    }
 }
 
 function Write-Observability {
@@ -132,6 +139,7 @@ quality_level = report.classify_quality(
 for path in report.write_reports(summary['run_date'], 'data/reports', include_json=True, metrics=metrics, comparison=comparison, quality_level=quality_level):
     print(f'Data quality report written to: {path}')
 "@ | Tee-Object -FilePath $LogFile -Append
+    Assert-NativeSuccess "write observability"
 }
 
 function Invoke-CrawlAndSilver {
@@ -142,6 +150,7 @@ function Invoke-CrawlAndSilver {
         $before = Get-ChildItem $BronzeDateDir -Directory | ForEach-Object { $_.FullName }
     }
     python -m crawler.crawl --config $ConfigPath *>&1 | Tee-Object -FilePath $LogFile -Append
+    Assert-NativeSuccess "crawl step"
     $after = @()
     if (Test-Path $BronzeDateDir) {
         $after = Get-ChildItem $BronzeDateDir -Directory | ForEach-Object { $_.FullName }
@@ -152,6 +161,7 @@ function Invoke-CrawlAndSilver {
         $crawlId = Split-Path $bronzeDir -Leaf
         $CrawlIdsCreated.Add($crawlId) | Out-Null
         python -m transform.bronze_to_silver --bronze-dir $bronzeDir --silver-dir (Join-Path $SilverDateDir $crawlId) *>&1 | Tee-Object -FilePath $LogFile -Append
+        Assert-NativeSuccess "bronze-to-silver step for $crawlId"
     }
 }
 
@@ -163,10 +173,11 @@ try {
 
     $configs = $CrawlConfigsRaw.Split(",") | ForEach-Object { $_.Trim() } | Where-Object { $_ }
     if ($Mode -eq "smoke") { $configs = @($configs[0]) }
-    $preflightArgs = @("-m", "src.validation.preflight", "--run-id", $RunId)
+    $preflightArgs = @("-m", "src.validation.preflight", "--run-id", $RunId, "--output-dir", (Join-Path $ProjectDir "data\logs\preflight"))
     foreach ($config in $configs) { $preflightArgs += @("--config", $config) }
     if ($Mode -eq "full") { $preflightArgs += "--require-spark" }
     python @preflightArgs *>&1 | Tee-Object -FilePath $LogFile -Append
+    Assert-NativeSuccess "preflight"
     foreach ($config in $configs) { Invoke-CrawlAndSilver $config }
 
     if ($Mode -eq "smoke") {
@@ -179,18 +190,30 @@ try {
 
     Write-Log "[2] Silver-to-Gold"
     python -m transform.silver_to_gold *>&1 | Tee-Object -FilePath $LogFile -Append
+    Assert-NativeSuccess "silver-to-gold"
 
     Write-Log "[3] Validation"
     $script:ValidationStatus = "running"
     python -m validation.check_phase3 *>&1 | Tee-Object -FilePath $LogFile -Append
+    Assert-NativeSuccess "validation"
     $script:ValidationStatus = "pass"
+
+    if ($script:ValidationStatus -ne "pass") {
+        $script:PipelineStatus = "failed"
+        $script:ErrorMessage = "validation_gate_failed"
+        Write-Observability
+        throw "Validation gate failed"
+    }
 
     Write-Log "[4] GCS sync"
     if ($SyncToGcs -eq "true") {
         $script:GcsSyncStatus = "running"
         gcloud storage rsync --recursive --exclude=".*\.crc$" "$ProjectDir\data\bronze" "$Bucket/bronze" *>&1 | Tee-Object -FilePath $LogFile -Append
+        Assert-NativeSuccess "bronze gcs sync"
         gcloud storage rsync --recursive --exclude=".*\.crc$" "$ProjectDir\data\silver" "$Bucket/silver" *>&1 | Tee-Object -FilePath $LogFile -Append
+        Assert-NativeSuccess "silver gcs sync"
         gcloud storage rsync --recursive --delete-unmatched-destination-objects --exclude=".*\.crc$" "$ProjectDir\data\gold" "$Bucket/gold" *>&1 | Tee-Object -FilePath $LogFile -Append
+        Assert-NativeSuccess "gold gcs sync"
         $script:GcsSyncStatus = "success"
     } else {
         $script:GcsSyncStatus = "skipped"
@@ -198,6 +221,7 @@ try {
 
     $script:PipelineStatus = "success"
     Write-Observability
+    Assert-NativeSuccess "final observability"
     Write-Log "[SUCCESS] Daily pipeline completed"
 } catch {
     $script:PipelineStatus = "failed"

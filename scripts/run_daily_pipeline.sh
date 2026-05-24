@@ -7,13 +7,14 @@ CRAWL_CONFIGS="${CRAWL_CONFIGS:-configs/team/priority_a_ha_noi.yaml,configs/team
 CRAWL_DATE="${CRAWL_DATE:-$(date +%Y-%m-%d)}"
 PIPELINE_MODE="${PIPELINE_MODE:-full}"
 SYNC_TO_GCS="${SYNC_TO_GCS:-true}"
+PIPELINE_LOG_DIR="$PROJECT_DIR/data/logs/daily_pipeline"
+RUN_ID="${RUN_ID:-daily_$(date +%Y%m%d_%H%M%S)}"
 
 if [[ "${1:-}" == "--mode" && -n "${2:-}" ]]; then
   PIPELINE_MODE="$2"
 fi
 
-RUN_ID="daily_$(date +%Y%m%d_%H%M%S)"
-LOG_DIR="$PROJECT_DIR/data/logs/daily_pipeline"
+LOG_DIR="$PIPELINE_LOG_DIR"
 LOG_FILE="$LOG_DIR/$RUN_ID.log"
 BRONZE_DATE_DIR="$PROJECT_DIR/data/bronze/source=batdongsan/crawl_date=$CRAWL_DATE"
 SILVER_DATE_DIR="$PROJECT_DIR/data/silver/source=batdongsan/crawl_date=$CRAWL_DATE"
@@ -195,7 +196,7 @@ if [[ "$PIPELINE_MODE" == "smoke" ]]; then
   CRAWL_CONFIG_ARRAY=("${CRAWL_CONFIG_ARRAY[0]}")
 fi
 
-PREFLIGHT_ARGS=(--run-id "$RUN_ID")
+PREFLIGHT_ARGS=(--run-id "$RUN_ID" --output-dir "$PROJECT_DIR/data/logs/preflight")
 for crawl_config in "${CRAWL_CONFIG_ARRAY[@]}"; do
   PREFLIGHT_ARGS+=(--config "$crawl_config")
 done
@@ -224,6 +225,14 @@ echo "[3] Validation"
 VALIDATION_STATUS="running"
 python -m validation.check_phase3
 VALIDATION_STATUS="pass"
+
+if [[ "$VALIDATION_STATUS" != "pass" ]]; then
+  PIPELINE_STATUS="failed"
+  ERROR_MESSAGE="validation_gate_failed"
+  write_observability
+  echo "[ERROR] Validation gate failed"
+  exit 1
+fi
 
 echo "[4] GCS sync"
 if [[ "$SYNC_TO_GCS" == "true" ]]; then

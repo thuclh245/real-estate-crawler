@@ -2,7 +2,8 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$RunId,
     [string[]]$Config = @(),
-    [switch]$RequireSpark
+    [switch]$RequireSpark,
+    [string]$OutputDir = "data/logs/preflight"
 )
 
 $ErrorActionPreference = "Stop"
@@ -17,6 +18,7 @@ foreach ($configPath in $Config) {
 if ($RequireSpark) {
     $argsList += "--require-spark"
 }
+$argsList += @("--output-dir", $OutputDir)
 
 if (Test-Path ".\.venv\Scripts\python.exe") {
     & .\.venv\Scripts\python.exe @argsList
