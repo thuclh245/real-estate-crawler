@@ -7,6 +7,12 @@ import sys
 from datetime import datetime
 from urllib.parse import urljoin
 
+from crawler.block_detector import (
+    classify_failure_status,
+    increment_http_counters,
+    is_blocked_page,
+)
+from crawler.bronze_writer import build_listing_paths, write_metadata_json, write_raw_html
 from crawler.crawl_audit import (
     audit_location,
     classify_category_match,
@@ -24,9 +30,14 @@ from crawler.crawl_config import (
     get_target_location_slug,
     load_config,
 )
+from crawler.detail_page_parser import parse_detail_page_location_fields
 from crawler.fetcher import fetch_with_retry
+from crawler.list_page_parser import (
+    extract_listing_entries_from_listing_page,
+    extract_listing_urls_from_listing_page,
+)
 from crawler.parser import html_to_text, extract_phase1_stub_fields
-from crawler.parsing.normalizers import clean_text
+from common.paths import bronze_partition_path
 from common.storage import save_text_file, save_json_file, append_jsonl
 from crawler.url_builder import build_seed_url
 from common.utils import get_listing_id_or_hash, now_utc_iso, today_str
@@ -42,56 +53,6 @@ for stream in (sys.stdout, sys.stderr):
 
 def make_crawl_id(source_slug: str) -> str:
     return f"{source_slug}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-
-
-def is_blocked_page(
-    http_status: int, html: str, listing_urls_found: int | None = None
-) -> bool:
-    html_lower = (html or "").lower()
-
-    if http_status in [403, 429]:
-        return True
-
-    block_signals = [
-        "<title>just a moment",
-        "cf-browser-verification",
-        "/cdn-cgi/challenge-platform",
-        "__cf_chl",
-        "cf-chl-",
-        "attention required! | cloudflare",
-        "g-recaptcha",
-        "h-captcha",
-    ]
-
-    has_block_signal = any(signal in html_lower for signal in block_signals)
-    if not has_block_signal:
-        return False
-
-    # If listing URLs are already extracted from a listing page, treat content as usable.
-    if listing_urls_found is not None and listing_urls_found > 0:
-        return False
-
-    return True
-
-
-def increment_http_counters(summary: dict, http_status: int | None):
-    if http_status == 403:
-        summary["http_403_count"] += 1
-    elif http_status == 429:
-        summary["http_429_count"] += 1
-
-
-def classify_failure_status(
-    http_status: int | None, error_message: str | None = None
-) -> str:
-    error_lower = (error_message or "").lower()
-    if http_status in {403, 429}:
-        return "blocked"
-    if http_status is not None:
-        return "failed_http"
-    if "timeout" in error_lower or "timed out" in error_lower:
-        return "failed_timeout"
-    return "failed_fetch"
 
 
 def save_list_page_debug(
@@ -155,124 +116,6 @@ def save_list_page_debug(
     return debug_html_path, debug_metadata_path
 
 
-def parse_listing_card_old_district(location_raw: str | None) -> str | None:
-    if not location_raw:
-        return None
-    match = re.search(r"\(([^)]*cũ[^)]*)\)", location_raw, flags=re.IGNORECASE)
-    return clean_text(match.group(1)) if match else None
-
-
-def parse_detail_page_location_fields(html: str) -> dict:
-    from bs4 import BeautifulSoup
-
-    soup = BeautifulSoup(html or "", "lxml")
-    title = (
-        clean_text(
-            soup.select_one(".re__pr-title, .js__pr-title").get_text(" ", strip=True)
-        )
-        if soup.select_one(".re__pr-title, .js__pr-title")
-        else None
-    )
-    address = (
-        clean_text(soup.select_one(".re__address-line-1").get_text(" ", strip=True))
-        if soup.select_one(".re__address-line-1")
-        else None
-    )
-    breadcrumb = (
-        clean_text(
-            soup.select_one(".re__breadcrumb, .js__breadcrumb").get_text(
-                " ", strip=True
-            )
-        )
-        if soup.select_one(".re__breadcrumb, .js__breadcrumb")
-        else None
-    )
-    description = (
-        clean_text(soup.select_one(".re__section-body").get_text(" ", strip=True))
-        if soup.select_one(".re__section-body")
-        else None
-    )
-
-    return {
-        "detail_title": title,
-        "detail_address_raw": address,
-        "breadcrumb_raw": breadcrumb,
-        "breadcrumb_location_raw": breadcrumb,
-        "detail_description": description,
-    }
-
-
-def extract_listing_entries_from_listing_page(html: str) -> list[dict]:
-    from bs4 import BeautifulSoup
-
-    soup = BeautifulSoup(html or "", "lxml")
-    entries_by_url = {}
-
-    cards = soup.select(".js__card-listing")
-    if not cards:
-        cards = [
-            a.parent
-            for a in soup.find_all("a", href=True)
-            if "pr" in (a.get("href") or "")
-        ]
-
-    for card in cards:
-        if not card:
-            continue
-
-        link = card.select_one("a[href*='pr'][href*='ban-']") or card.find(
-            "a", href=True
-        )
-        href = (link.get("href") or "").strip() if link else ""
-        if not href:
-            continue
-
-        absolute = urljoin("https://batdongsan.com.vn", href)
-        if "batdongsan.com.vn" not in absolute or not re.search(r"pr\d+", absolute):
-            continue
-
-        title_el = card.select_one(".js__card-title, .pr-title, .re__card-title")
-        price_el = card.select_one(".re__card-config-price")
-        area_el = card.select_one(".re__card-config-area")
-        location_el = card.select_one(".re__card-location")
-        description_el = card.select_one(".js__card-description, .re__card-description")
-
-        location_raw = (
-            clean_text(location_el.get_text(" ", strip=True)) if location_el else None
-        )
-        entry = {
-            "listing_url": absolute,
-            "listing_card_title": (
-                clean_text(title_el.get_text(" ", strip=True)) if title_el else None
-            ),
-            "listing_card_price_raw": (
-                clean_text(price_el.get_text(" ", strip=True)) if price_el else None
-            ),
-            "listing_card_area_raw": (
-                clean_text(area_el.get_text(" ", strip=True)) if area_el else None
-            ),
-            "listing_card_location_raw": location_raw,
-            "listing_card_old_district_raw": parse_listing_card_old_district(
-                location_raw
-            ),
-            "listing_card_description": (
-                clean_text(description_el.get_text(" ", strip=True))
-                if description_el
-                else None
-            ),
-        }
-        entries_by_url.setdefault(absolute, entry)
-
-    return list(entries_by_url.values())
-
-
-def extract_listing_urls_from_listing_page(html: str) -> list[str]:
-    return [
-        entry["listing_url"]
-        for entry in extract_listing_entries_from_listing_page(html)
-    ]
-
-
 def run_crawl(config_path: str):
     config = load_config(config_path)
 
@@ -293,12 +136,10 @@ def run_crawl(config_path: str):
     max_retries = int(settings.get("max_retries", 1))
     retry_delay_seconds = float(settings.get("retry_delay_seconds", 10))
 
-    bronze_root = (
-        Path("data")
-        / "bronze"
-        / f"source={source}"
-        / f"crawl_date={crawl_date}"
-        / f"crawl_id={crawl_id}"
+    bronze_root = bronze_partition_path(
+        source=source,
+        crawl_date=crawl_date,
+        crawl_id=crawl_id,
     )
 
     summary = {
@@ -770,18 +611,16 @@ def run_crawl(config_path: str):
                     listing_url
                 )
 
-                raw_html_path = (
-                    bronze_root / "raw_html" / f"listing_id={listing_id}.html"
+                paths = build_listing_paths(
+                    listing_id=listing_id,
+                    source=source,
+                    crawl_date=crawl_date,
+                    crawl_id=crawl_id,
                 )
-                raw_text_path = (
-                    bronze_root / "raw_text" / f"listing_id={listing_id}.txt"
-                )
-                raw_json_path = (
-                    bronze_root / "raw_json" / f"listing_id={listing_id}.json"
-                )
-                metadata_path = (
-                    bronze_root / "metadata" / f"listing_id={listing_id}.json"
-                )
+                raw_html_path = paths["raw_html"]
+                raw_text_path = paths["raw_text"]
+                raw_json_path = paths["raw_json"]
+                metadata_path = paths["metadata"]
 
                 metadata = {
                     "listing_id": listing_id,
@@ -856,10 +695,22 @@ def run_crawl(config_path: str):
 
                 extracted_json = {**metadata, "extracted": basic_fields}
 
-                save_text_file(raw_html_path, detail_html)
+                write_raw_html(
+                    html=detail_html,
+                    listing_id=listing_id,
+                    source=source,
+                    crawl_date=crawl_date,
+                    crawl_id=crawl_id,
+                )
                 save_text_file(raw_text_path, detail_text)
                 save_json_file(raw_json_path, extracted_json)
-                save_json_file(metadata_path, metadata)
+                write_metadata_json(
+                    metadata=metadata,
+                    listing_id=listing_id,
+                    source=source,
+                    crawl_date=crawl_date,
+                    crawl_id=crawl_id,
+                )
                 written_raw_html_paths.append(raw_html_path)
                 written_metadata_paths.append(metadata_path)
 
