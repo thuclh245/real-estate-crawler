@@ -1,13 +1,17 @@
 import sys
 import unittest
 from pathlib import Path
+import shutil
 from uuid import uuid4
 
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
+from common.utils import today_str
+from crawler.crawl_config import load_config
 from crawler.orchestrator import CrawlOrchestrator, CrawlDependencies
+from transform.bronze_to_silver import run_bronze_to_silver
 
 
 LIST_PAGE_HTML = """
@@ -48,12 +52,7 @@ class CrawlFlowTest(unittest.TestCase):
         self.base_dir = ROOT / "tests" / "tmp_runtime" / "crawl_flow" / uuid4().hex
 
     def tearDown(self):
-        if self.base_dir.exists():
-            for path in sorted(self.base_dir.rglob("*"), reverse=True):
-                if path.is_file():
-                    path.unlink()
-                else:
-                    path.rmdir()
+        shutil.rmtree(self.base_dir, ignore_errors=True)
 
     def test_crawl_flow_writes_bronze_files(self):
         config = {
@@ -96,6 +95,58 @@ class CrawlFlowTest(unittest.TestCase):
         self.assertEqual(len(metadata_files), 1)
         raw_html_files = list(self.base_dir.rglob("raw_html/*.html"))
         self.assertEqual(len(raw_html_files), 1)
+
+    def test_real_yaml_writes_bronze_and_silver_under_standard_source_partition(self):
+        config = load_config(ROOT / "configs" / "crawl_targets.yaml")
+        config["crawl_settings"]["request_delay_seconds"] = 0
+        config["crawl_settings"]["max_pages_per_target"] = 1
+        config["crawl_settings"]["max_listings_per_target"] = 1
+
+        dependencies = CrawlDependencies(fetch_with_retry_fn=fake_fetch_with_retry)
+        summary = CrawlOrchestrator(
+            config,
+            base_dir=self.base_dir,
+            dependencies=dependencies,
+        ).run()
+
+        crawl_date = today_str()
+        crawl_id = summary["crawl_id"]
+        bronze_crawl_dir = (
+            self.base_dir
+            / "bronze"
+            / "source=batdongsan"
+            / f"crawl_date={crawl_date}"
+            / f"crawl_id={crawl_id}"
+        )
+        silver_crawl_dir = (
+            self.base_dir
+            / "silver"
+            / "source=batdongsan"
+            / f"crawl_date={crawl_date}"
+            / f"crawl_id={crawl_id}"
+        )
+
+        self.assertEqual(config["source"], "batdongsan")
+        self.assertEqual(config["source_domain"], "batdongsan.com.vn")
+        self.assertTrue(bronze_crawl_dir.exists())
+        self.assertTrue((bronze_crawl_dir / "metadata").exists())
+        self.assertGreater(len(list((bronze_crawl_dir / "metadata").glob("*.json"))), 0)
+
+        run_bronze_to_silver(
+            bronze_dir=str(bronze_crawl_dir),
+            silver_dir=str(silver_crawl_dir),
+        )
+
+        self.assertTrue((silver_crawl_dir / "listings.parquet").exists())
+        self.assertTrue((silver_crawl_dir / "data_quality_summary.json").exists())
+        self.assertFalse(
+            (
+                self.base_dir
+                / "bronze"
+                / "source=batdongsan.com.vn"
+                / f"crawl_date={crawl_date}"
+            ).exists()
+        )
 
 
 if __name__ == "__main__":

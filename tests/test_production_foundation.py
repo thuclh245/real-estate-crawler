@@ -5,6 +5,8 @@ import unittest
 from pathlib import Path
 from uuid import uuid4
 
+import yaml
+
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
@@ -99,6 +101,27 @@ class ProductionFoundationTest(unittest.TestCase):
 
         self.assertEqual(exit_code, EXIT_PASS)
         self.assertEqual(payload["overall"], "pass")
+
+    def test_source_code_is_consistent_across_configs_and_pipeline_scripts(self):
+        config_paths = [
+            ROOT / "configs" / "crawl_targets.yaml",
+            ROOT / "configs" / "crawl_targets_scale.yaml",
+            ROOT / "configs" / "team" / "priority_a_ha_noi.yaml",
+            ROOT / "configs" / "team" / "priority_a_ha_noi_expand_01.yaml",
+        ]
+
+        for config_path in config_paths:
+            config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+            self.assertEqual(config["source"], "batdongsan", config_path)
+            self.assertEqual(config["source_domain"], "batdongsan.com.vn", config_path)
+
+        for script_path in [
+            ROOT / "scripts" / "run_daily_pipeline.ps1",
+            ROOT / "scripts" / "run_daily_pipeline.sh",
+        ]:
+            script_text = script_path.read_text(encoding="utf-8")
+            self.assertIn("source=batdongsan", script_text, script_path)
+            self.assertNotIn("source=batdongsan" + ".com.vn", script_text, script_path)
 
     def test_quarantine_base_appends_jsonl_record(self):
         record = build_quarantine_record(

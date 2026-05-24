@@ -130,10 +130,13 @@ The YAML file contains:
 
 ```text
 source
+source_domain
 base_url
 crawl_settings
 targets
 ```
+
+`source` is the stable technical source code used in local and GCS partition paths. For Batdongsan it must be `batdongsan`, producing folders such as `source=batdongsan`. Keep the website hostname in `source_domain`, for example `batdongsan.com.vn`; do not use the hostname as the `source` value.
 
 Important settings:
 

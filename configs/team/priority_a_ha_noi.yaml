@@ -1,4 +1,5 @@
-source: batdongsan.com.vn
+source: batdongsan
+source_domain: batdongsan.com.vn
 base_url: https://batdongsan.com.vn
 
 crawl_settings:
