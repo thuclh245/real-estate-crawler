@@ -11,6 +11,12 @@ Write-Host "======================================"
 Write-Host "Note: Linux / Google Cloud VM is the official Spark runtime."
 
 $env:PYTHONPATH = "src"
+if (-not $env:PYTHONIOENCODING) { $env:PYTHONIOENCODING = "utf-8" }
+if (-not $env:SPARK_MASTER) { $env:SPARK_MASTER = "local[2]" }
+if (-not $env:SPARK_DRIVER_MEMORY) { $env:SPARK_DRIVER_MEMORY = "4g" }
+if (-not $env:SPARK_DRIVER_MAX_RESULT_SIZE) { $env:SPARK_DRIVER_MAX_RESULT_SIZE = "1g" }
+if (-not $env:SPARK_SQL_SHUFFLE_PARTITIONS) { $env:SPARK_SQL_SHUFFLE_PARTITIONS = "8" }
+if (-not $env:SPARK_DEFAULT_PARALLELISM) { $env:SPARK_DEFAULT_PARALLELISM = "8" }
 
 $runId = "gold_validation_" + (Get-Date -Format "yyyyMMdd_HHmmss")
 $logDir = "data\logs\gold_validation"
@@ -27,6 +33,9 @@ Write-Log "[INFO] Run ID: $runId"
 Write-Log "[INFO] Start time: $(Get-Date -Format o)"
 Write-Log "[INFO] PYTHONPATH: $env:PYTHONPATH"
 Write-Log "[INFO] Python: $(& $PythonExe --version)"
+Write-Log "[INFO] Spark master: $env:SPARK_MASTER"
+Write-Log "[INFO] Spark driver memory: $env:SPARK_DRIVER_MEMORY"
+Write-Log "[INFO] Spark shuffle partitions: $env:SPARK_SQL_SHUFFLE_PARTITIONS"
 
 Write-Log "[STEP 1] Running Spark Silver-to-Gold transformation"
 & $PythonExe -m transform.silver_to_gold *>&1 | Tee-Object -FilePath $logFile -Append

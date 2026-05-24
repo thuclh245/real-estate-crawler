@@ -97,6 +97,12 @@ Set `JAVA_HOME` before running Gold ETL:
 export PYTHONPATH=src
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 export PATH="$JAVA_HOME/bin:$PATH"
+export PYTHONIOENCODING=utf-8
+export SPARK_MASTER=local[2]
+export SPARK_DRIVER_MEMORY=4g
+export SPARK_DRIVER_MAX_RESULT_SIZE=1g
+export SPARK_SQL_SHUFFLE_PARTITIONS=8
+export SPARK_DEFAULT_PARALLELISM=8
 python3 -m transform.silver_to_gold
 ```
 
@@ -105,6 +111,12 @@ Optional: persist `JAVA_HOME` for future sessions:
 ```bash
 echo 'export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64' >> ~/.bashrc
 echo 'export PATH="$JAVA_HOME/bin:$PATH"' >> ~/.bashrc
+echo 'export PYTHONIOENCODING=utf-8' >> ~/.bashrc
+echo 'export SPARK_MASTER=local[2]' >> ~/.bashrc
+echo 'export SPARK_DRIVER_MEMORY=4g' >> ~/.bashrc
+echo 'export SPARK_DRIVER_MAX_RESULT_SIZE=1g' >> ~/.bashrc
+echo 'export SPARK_SQL_SHUFFLE_PARTITIONS=8' >> ~/.bashrc
+echo 'export SPARK_DEFAULT_PARALLELISM=8' >> ~/.bashrc
 source ~/.bashrc
 ```
 

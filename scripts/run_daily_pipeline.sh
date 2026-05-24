@@ -186,10 +186,19 @@ exec > >(tee -a "$LOG_FILE") 2>&1
 cd "$PROJECT_DIR"
 source .venv/bin/activate
 export PYTHONPATH=src
+export PYTHONIOENCODING="${PYTHONIOENCODING:-utf-8}"
+export SPARK_MASTER="${SPARK_MASTER:-local[2]}"
+export SPARK_DRIVER_MEMORY="${SPARK_DRIVER_MEMORY:-4g}"
+export SPARK_DRIVER_MAX_RESULT_SIZE="${SPARK_DRIVER_MAX_RESULT_SIZE:-1g}"
+export SPARK_SQL_SHUFFLE_PARTITIONS="${SPARK_SQL_SHUFFLE_PARTITIONS:-8}"
+export SPARK_DEFAULT_PARALLELISM="${SPARK_DEFAULT_PARALLELISM:-8}"
 
 echo "[INFO] Run ID: $RUN_ID"
 echo "[INFO] Mode: $PIPELINE_MODE"
 echo "[INFO] Crawl date: $CRAWL_DATE"
+echo "[INFO] Spark master: $SPARK_MASTER"
+echo "[INFO] Spark driver memory: $SPARK_DRIVER_MEMORY"
+echo "[INFO] Spark shuffle partitions: $SPARK_SQL_SHUFFLE_PARTITIONS"
 
 IFS=',' read -r -a CRAWL_CONFIG_ARRAY <<< "$CRAWL_CONFIGS"
 if [[ "$PIPELINE_MODE" == "smoke" ]]; then

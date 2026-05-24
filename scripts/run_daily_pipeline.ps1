@@ -28,6 +28,12 @@ $CrawlIdsCreated = New-Object System.Collections.Generic.List[string]
 
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 $env:PYTHONPATH = "src"
+if (-not $env:PYTHONIOENCODING) { $env:PYTHONIOENCODING = "utf-8" }
+if (-not $env:SPARK_MASTER) { $env:SPARK_MASTER = "local[2]" }
+if (-not $env:SPARK_DRIVER_MEMORY) { $env:SPARK_DRIVER_MEMORY = "4g" }
+if (-not $env:SPARK_DRIVER_MAX_RESULT_SIZE) { $env:SPARK_DRIVER_MAX_RESULT_SIZE = "1g" }
+if (-not $env:SPARK_SQL_SHUFFLE_PARTITIONS) { $env:SPARK_SQL_SHUFFLE_PARTITIONS = "8" }
+if (-not $env:SPARK_DEFAULT_PARALLELISM) { $env:SPARK_DEFAULT_PARALLELISM = "8" }
 
 function Write-Log {
     param([string]$Message)
@@ -172,6 +178,9 @@ try {
     Write-Log "[INFO] Run ID: $RunId"
     Write-Log "[INFO] Mode: $Mode"
     Write-Log "[INFO] Crawl date: $CrawlDate"
+    Write-Log "[INFO] Spark master: $env:SPARK_MASTER"
+    Write-Log "[INFO] Spark driver memory: $env:SPARK_DRIVER_MEMORY"
+    Write-Log "[INFO] Spark shuffle partitions: $env:SPARK_SQL_SHUFFLE_PARTITIONS"
 
     $configs = $CrawlConfigsRaw.Split(",") | ForEach-Object { $_.Trim() } | Where-Object { $_ }
     if ($Mode -eq "smoke") { $configs = @($configs[0]) }

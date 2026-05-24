@@ -6,12 +6,12 @@ crawl_settings:
   fetch_mode: crawl4ai
   max_pages_per_target: 1
   max_listings_per_target: 10
-  request_delay_seconds: 5
+  request_delay_seconds: 12
   concurrency: 1
   save_images: false
   stop_on_block: true
-  max_retries: 1
-  retry_delay_seconds: 10
+  max_retries: 3
+  retry_delay_seconds: 45
   crawler_version: v0.1
   parser_version: v0.1
 
