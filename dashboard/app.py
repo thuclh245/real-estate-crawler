@@ -9,7 +9,6 @@ from dashboard.pages.pipeline_health import render_pipeline_health
 from dashboard.pages.quality import render_quality
 from dashboard.pages.snapshot import render_snapshot
 
-
 st.set_page_config(
     page_title="Real Estate Lakehouse Dashboard",
     page_icon="🏠",
@@ -28,7 +27,9 @@ def load_gold_table_or_empty(table_name: str) -> tuple[pd.DataFrame, str | None]
 
 def main() -> None:
     st.title("Real Estate Lakehouse Dashboard")
-    st.caption("Streamlit giữ các view kỹ thuật/ops; market-facing BI sẽ chuyển dần sang Power BI ở V2.")
+    st.caption(
+        "Streamlit giữ các view kỹ thuật/ops; market-facing BI sẽ chuyển dần sang Power BI ở V2."
+    )
 
     table_names = [
         "gold_current_listings",
@@ -57,15 +58,17 @@ def main() -> None:
     quality_df = loaded_tables["gold_data_quality_daily"]
     removed_df = loaded_tables["gold_removed_listings"]
 
-    tab_overview, tab_quality, tab_health, tab_market, tab_listings, tab_snapshot = st.tabs(
-        [
-            "Overview",
-            "Data Quality",
-            "Pipeline Health",
-            "Market (Legacy)",
-            "Technical Listings Explorer",
-            "Snapshot Tracking",
-        ]
+    tab_overview, tab_quality, tab_health, tab_market, tab_listings, tab_snapshot = (
+        st.tabs(
+            [
+                "Overview",
+                "Data Quality",
+                "Pipeline Health",
+                "Market (Legacy)",
+                "Technical Listings Explorer",
+                "Snapshot Tracking",
+            ]
+        )
     )
 
     with tab_overview:

@@ -17,7 +17,11 @@ def render_listings(current_df: pd.DataFrame) -> None:
 
     with col1:
         if "district_norm" in filtered.columns:
-            selected = st.multiselect("District", sorted(filtered["district_norm"].dropna().astype(str).unique()), default=[])
+            selected = st.multiselect(
+                "District",
+                sorted(filtered["district_norm"].dropna().astype(str).unique()),
+                default=[],
+            )
             if selected:
                 filtered = filtered[filtered["district_norm"].isin(selected)]
 
@@ -33,7 +37,9 @@ def render_listings(current_df: pd.DataFrame) -> None:
 
     with col3:
         if "price_unit" in filtered.columns:
-            price_mode = st.selectbox("Price Mode", ["All", "Listed Price", "Negotiable"])
+            price_mode = st.selectbox(
+                "Price Mode", ["All", "Listed Price", "Negotiable"]
+            )
             if price_mode == "Listed Price":
                 filtered = filtered[filtered["price_unit"] != "negotiable"]
             elif price_mode == "Negotiable":
@@ -43,7 +49,9 @@ def render_listings(current_df: pd.DataFrame) -> None:
 
     with enrich_col1:
         if "has_legal_info" in filtered.columns:
-            legal_mode = st.selectbox("Legal Info", ["All", "Has Legal Info", "No Legal Info"])
+            legal_mode = st.selectbox(
+                "Legal Info", ["All", "Has Legal Info", "No Legal Info"]
+            )
             if legal_mode == "Has Legal Info":
                 filtered = filtered[filtered["has_legal_info"] == True]
             elif legal_mode == "No Legal Info":
@@ -76,7 +84,11 @@ def render_listings(current_df: pd.DataFrame) -> None:
                 filtered = filtered[filtered["furniture_level"].isin(selected)]
 
     price_values = numeric_series(filtered, "price_vnd")
-    if not price_values.empty and price_values.notna().any() and "price_vnd" in filtered.columns:
+    if (
+        not price_values.empty
+        and price_values.notna().any()
+        and "price_vnd" in filtered.columns
+    ):
         min_price, max_price = float(price_values.min()), float(price_values.max())
         selected_range = st.slider(
             "Price range",
@@ -85,7 +97,10 @@ def render_listings(current_df: pd.DataFrame) -> None:
             value=(min_price, max_price),
             format="%.0f",
         )
-        filtered = filtered[(numeric_series(filtered, "price_vnd").between(*selected_range)) | (filtered["price_vnd"].isna())]
+        filtered = filtered[
+            (numeric_series(filtered, "price_vnd").between(*selected_range))
+            | (filtered["price_vnd"].isna())
+        ]
 
     st.write(f"Showing {len(filtered):,} listings")
 

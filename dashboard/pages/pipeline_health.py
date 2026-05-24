@@ -4,7 +4,11 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from dashboard.data_loaders import PIPELINE_LOG_DIR, load_latest_production_summary, load_run_summaries
+from dashboard.data_loaders import (
+    PIPELINE_LOG_DIR,
+    load_latest_production_summary,
+    load_run_summaries,
+)
 from dashboard.formatters import format_pct
 
 
@@ -21,14 +25,20 @@ def render_pipeline_health(log_dir: Path | str = PIPELINE_LOG_DIR) -> None:
     latest = (
         pd.Series(latest_production)
         if latest_production
-        else summaries_df.sort_values(sort_col).tail(1).iloc[0] if sort_col else summaries_df.tail(1).iloc[0]
+        else (
+            summaries_df.sort_values(sort_col).tail(1).iloc[0]
+            if sort_col
+            else summaries_df.tail(1).iloc[0]
+        )
     )
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Parse Success Rate", format_pct(latest.get("parse_success_rate")))
     c2.metric("Duplicate Rate", format_pct(latest.get("duplicate_rate")))
     c3.metric("Missing Price Rate", format_pct(latest.get("missing_price_rate")))
-    latest_total_records = latest.get("total_silver_records") or latest.get("silver_records_written") or 0
+    latest_total_records = (
+        latest.get("total_silver_records") or latest.get("silver_records_written") or 0
+    )
     c4.metric("Total Records", f"{int(latest_total_records):,}")
 
     trend_metrics = [
@@ -98,8 +108,10 @@ def render_pipeline_health(log_dir: Path | str = PIPELINE_LOG_DIR) -> None:
     ]
     history_cols = [col for col in history_cols if col in summaries_df.columns]
     st.dataframe(
-        summaries_df.sort_values("run_date", ascending=False)[history_cols]
-        if "run_date" in summaries_df.columns
-        else summaries_df[history_cols],
+        (
+            summaries_df.sort_values("run_date", ascending=False)[history_cols]
+            if "run_date" in summaries_df.columns
+            else summaries_df[history_cols]
+        ),
         use_container_width=True,
     )

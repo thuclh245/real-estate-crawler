@@ -18,11 +18,15 @@ def render_market(district_df: pd.DataFrame, property_type_df: pd.DataFrame) -> 
         if "district_norm" in district_view.columns:
             selected = st.multiselect(
                 "Select districts",
-                options=sorted(district_view["district_norm"].dropna().astype(str).unique()),
+                options=sorted(
+                    district_view["district_norm"].dropna().astype(str).unique()
+                ),
                 default=[],
             )
             if selected:
-                district_view = district_view[district_view["district_norm"].isin(selected)]
+                district_view = district_view[
+                    district_view["district_norm"].isin(selected)
+                ]
 
         st.dataframe(district_view, use_container_width=True)
 
@@ -33,10 +37,17 @@ def render_market(district_df: pd.DataFrame, property_type_df: pd.DataFrame) -> 
                 .sort_values("listing_count", ascending=False)
                 .head(20)
             )
-            fig = px.bar(top_count, x="district_norm", y="listing_count", title="Top Districts by Listing Count")
+            fig = px.bar(
+                top_count,
+                x="district_norm",
+                y="listing_count",
+                title="Top Districts by Listing Count",
+            )
             st.plotly_chart(fig, use_container_width=True)
 
-        if {"district_norm", "median_unit_price_vnd_m2"}.issubset(district_view.columns):
+        if {"district_norm", "median_unit_price_vnd_m2"}.issubset(
+            district_view.columns
+        ):
             unit_price = (
                 district_view.dropna(subset=["median_unit_price_vnd_m2"])
                 .groupby("district_norm", as_index=False)["median_unit_price_vnd_m2"]
@@ -64,9 +75,13 @@ def render_market(district_df: pd.DataFrame, property_type_df: pd.DataFrame) -> 
             )
             st.plotly_chart(fig, use_container_width=True)
 
-        if {"property_type_group", "median_unit_price_vnd_m2"}.issubset(property_type_df.columns):
+        if {"property_type_group", "median_unit_price_vnd_m2"}.issubset(
+            property_type_df.columns
+        ):
             fig = px.bar(
-                property_type_df.sort_values("median_unit_price_vnd_m2", ascending=False),
+                property_type_df.sort_values(
+                    "median_unit_price_vnd_m2", ascending=False
+                ),
                 x="property_type_group",
                 y="median_unit_price_vnd_m2",
                 title="Median Unit Price VND/m² by Property Type",

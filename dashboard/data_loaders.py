@@ -4,7 +4,6 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-
 GOLD_DIR = Path("data/gold")
 PIPELINE_LOG_DIR = Path("data/logs/daily_pipeline")
 PIPELINE_RUN_DIR = Path("data/logs/pipeline_runs")
@@ -24,7 +23,9 @@ def find_table_path(table_name: str) -> Path:
     raise FileNotFoundError(f"Cannot find Gold table: {table_name}")
 
 
-def add_hive_partitions(df: pd.DataFrame, file_path: Path, table_path: Path) -> pd.DataFrame:
+def add_hive_partitions(
+    df: pd.DataFrame, file_path: Path, table_path: Path
+) -> pd.DataFrame:
     relative_parts = file_path.relative_to(table_path).parts[:-1]
     for part in relative_parts:
         if "=" not in part:
@@ -57,7 +58,9 @@ def read_gold_table(table_name: str) -> pd.DataFrame:
             return pd.concat(frames, ignore_index=True, sort=False)
 
         if csv_files:
-            return pd.concat([pd.read_csv(file_path) for file_path in csv_files], ignore_index=True)
+            return pd.concat(
+                [pd.read_csv(file_path) for file_path in csv_files], ignore_index=True
+            )
 
     raise FileNotFoundError(f"Cannot read Gold table: {path}")
 
