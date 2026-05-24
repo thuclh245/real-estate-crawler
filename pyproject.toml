@@ -7,6 +7,7 @@ requires-python = ">=3.11"
 [tool.pytest.ini_options]
 addopts = "--tb=short"
 testpaths = ["tests"]
+norecursedirs = ["tmp_runtime"]
 
 [tool.ruff]
 line-length = 100

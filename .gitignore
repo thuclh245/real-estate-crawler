@@ -31,3 +31,6 @@ tests/tmp_runtime/
 .kiro
 .env
 docs
+
+.kiro/specs/feature-extraction-regex
+.pytest_cache/
