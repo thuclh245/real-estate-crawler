@@ -1,6 +1,14 @@
-from crawler.parsing.feature_extractors import FEATURE_OUTPUT_KEYS, extract_features
-from crawler.parsing.feature_patterns import FEATURE_PATTERNS
-from crawler.parsing.feature_text_utils import build_search_text, normalize_text
+from __future__ import annotations
+
+import warnings
+
+warnings.warn(
+    "crawler.parsing is deprecated; use parsing.*",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
+from parsing import FEATURE_OUTPUT_KEYS, FEATURE_PATTERNS, build_search_text, extract_features, normalize_text
 
 
 __all__ = [

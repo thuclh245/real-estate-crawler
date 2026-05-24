@@ -1,13 +1,13 @@
 import re
 from urllib.parse import urljoin
 
-from crawler.parsing.normalizers import clean_text
+from parsing.normalizers import clean_text
 
 
 def parse_listing_card_old_district(location_raw: str | None) -> str | None:
     if not location_raw:
         return None
-    match = re.search(r"\(([^)]*cũ[^)]*)\)", location_raw, flags=re.IGNORECASE)
+    match = re.search(r"\(([^)]*(?:cu|cũ)[^)]*)\)", location_raw, flags=re.IGNORECASE)
     return clean_text(match.group(1)) if match else None
 
 

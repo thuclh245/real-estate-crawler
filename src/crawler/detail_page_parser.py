@@ -1,4 +1,4 @@
-from crawler.parsing.normalizers import clean_text
+from parsing.normalizers import clean_text
 
 
 def parse_detail_page_location_fields(html: str) -> dict:
