@@ -1,8 +1,11 @@
+import json
 import sys
 import unittest
 from pathlib import Path
 import shutil
 from uuid import uuid4
+
+import pandas as pd
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -96,6 +99,18 @@ class CrawlFlowTest(unittest.TestCase):
         raw_html_files = list(self.base_dir.rglob("raw_html/*.html"))
         self.assertEqual(len(raw_html_files), 1)
 
+        metadata = json.loads(metadata_files[0].read_text(encoding="utf-8"))
+        self.assertEqual(metadata.get("source"), "batdongsan")
+        self.assertEqual(metadata.get("listing_url"), "https://batdongsan.com.vn/ban-nha/pr123456")
+        self.assertEqual(metadata.get("final_detail_url"), "https://batdongsan.com.vn/ban-nha/pr123456")
+        self.assertEqual(metadata.get("crawl_status"), "ok")
+        self.assertEqual(metadata.get("http_status"), 200)
+        self.assertEqual(metadata.get("fetch_mode"), "requests")
+        self.assertTrue(Path(metadata["raw_html_path"]).exists())
+        self.assertTrue(Path(metadata["raw_text_path"]).exists())
+        self.assertTrue(Path(metadata["raw_json_path"]).exists())
+        self.assertTrue(Path(metadata["metadata_path"]).exists())
+
     def test_real_yaml_writes_bronze_and_silver_under_standard_source_partition(self):
         config = load_config(ROOT / "configs" / "crawl_targets.yaml")
         config["crawl_settings"]["request_delay_seconds"] = 0
@@ -139,6 +154,23 @@ class CrawlFlowTest(unittest.TestCase):
 
         self.assertTrue((silver_crawl_dir / "listings.parquet").exists())
         self.assertTrue((silver_crawl_dir / "data_quality_summary.json").exists())
+        silver_df = pd.read_parquet(silver_crawl_dir / "listings.parquet")
+        self.assertGreaterEqual(len(silver_df), 1)
+
+        required_columns = {
+            "source",
+            "listing_id",
+            "listing_url",
+            "price_vnd",
+            "area_m2",
+            "city_norm",
+            "district_norm",
+        }
+        self.assertTrue(required_columns.issubset(set(silver_df.columns)))
+        first_row = silver_df.iloc[0]
+        self.assertEqual(first_row["source"], "batdongsan")
+        self.assertEqual(first_row["listing_id"], "123456")
+        self.assertEqual(first_row["listing_url"], "https://batdongsan.com.vn/ban-nha/pr123456")
         self.assertFalse(
             (
                 self.base_dir
