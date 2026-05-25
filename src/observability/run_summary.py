@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from common.paths import default_daily_logs_dir, default_pipeline_logs_dir
+from validation.publish_gate import evaluate_publish_gate
 
 SUMMARY_SCHEMA_VERSION = "daily_run_summary_v1"
 PRODUCTION_SUMMARY_SCHEMA_VERSION = "production_run_summary_v2"
@@ -374,21 +375,14 @@ def _default_publish_state(
     silver_records_written: int,
     publish_block_reason: str | None,
 ) -> tuple[str, str | None]:
-    if run_class != "production" or pipeline_mode != "full":
-        return "skipped", publish_block_reason
-    if pipeline_status != "success":
-        return "blocked", publish_block_reason or f"pipeline_status={pipeline_status}"
-    if validation_status not in {"pass", "passed"}:
-        return (
-            "blocked",
-            publish_block_reason or f"validation_status={validation_status}",
-        )
-    if silver_records_written <= 0:
-        return (
-            "blocked",
-            publish_block_reason or "full production run has zero silver records",
-        )
-    return "published", None
+    decision = evaluate_publish_gate(
+        pipeline_mode=pipeline_mode,
+        run_class=run_class,
+        pipeline_status=pipeline_status,
+        validation_status=validation_status,
+        silver_records_written=silver_records_written,
+    )
+    return decision.status, publish_block_reason or decision.block_reason
 
 
 def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
