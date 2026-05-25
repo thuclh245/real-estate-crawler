@@ -12,6 +12,13 @@
       ],
       "target_v2_config_pattern": "configs/sources/<source_code>.yaml",
       "active_target_v2_config": "configs/sources/batdongsan.yaml"
+    },
+    {
+      "source_code": "nhatot",
+      "source_domain": "nhatot.com",
+      "current_config_paths": [],
+      "target_v2_config_pattern": "configs/sources/<source_code>.yaml",
+      "active_target_v2_config": null
     }
   ],
   "tables": [
@@ -38,6 +45,62 @@
       "grain": "one current listing snapshot row",
       "owner": "silver_to_gold",
       "status": "current"
+    },
+    {
+      "name": "dim_date",
+      "layer": "warehouse",
+      "path": "data/warehouse/dim_date/",
+      "grain": "one calendar date",
+      "owner": "warehouse",
+      "status": "stage2_minimum"
+    },
+    {
+      "name": "dim_source",
+      "layer": "warehouse",
+      "path": "data/warehouse/dim_source/",
+      "grain": "one normalized source",
+      "owner": "warehouse",
+      "status": "stage2_minimum"
+    },
+    {
+      "name": "dim_property_type",
+      "layer": "warehouse",
+      "path": "data/warehouse/dim_property_type/",
+      "grain": "one conformed real estate property type",
+      "owner": "warehouse",
+      "status": "stage2_minimum"
+    },
+    {
+      "name": "dim_location_basic",
+      "layer": "warehouse",
+      "path": "data/warehouse/dim_location_basic/",
+      "grain": "one conservative conformed location member",
+      "owner": "warehouse",
+      "status": "stage2_minimum"
+    },
+    {
+      "name": "dim_listing",
+      "layer": "warehouse",
+      "path": "data/warehouse/dim_listing/",
+      "grain": "one source listing identity",
+      "owner": "warehouse",
+      "status": "stage2_minimum"
+    },
+    {
+      "name": "fact_listing_snapshot",
+      "layer": "warehouse",
+      "path": "data/warehouse/fact_listing_snapshot/",
+      "grain": "one source listing observed on one snapshot date after daily dedup",
+      "owner": "warehouse",
+      "status": "stage2_minimum"
+    },
+    {
+      "name": "fact_data_quality_daily",
+      "layer": "warehouse",
+      "path": "data/warehouse/fact_data_quality_daily/",
+      "grain": "one source and crawl date quality rollup",
+      "owner": "warehouse",
+      "status": "stage2_minimum"
     },
     {
       "name": "quarantine_records",
