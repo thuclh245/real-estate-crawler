@@ -1,0 +1,11 @@
+publish_gate:
+  defaults:
+    min_silver_records: 1
+
+  modes:
+    smoke:
+      min_silver_records: 1
+
+    full:
+      production:
+        min_silver_records: 100

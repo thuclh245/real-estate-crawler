@@ -14,7 +14,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from common.quarantine import append_quarantine_record, build_quarantine_record
 from observability import ProductionRunSummary
 from validation.preflight import EXIT_HARD_FAILURE, EXIT_PASS, run_preflight
-from validation.publish_gate import evaluate_publish_gate
+from validation.publish_gate import evaluate_publish_gate, load_publish_thresholds
 
 
 class ProductionFoundationTest(unittest.TestCase):
@@ -73,12 +73,49 @@ class ProductionFoundationTest(unittest.TestCase):
             run_class="production",
             pipeline_status="success",
             validation_status="pass",
-            silver_records_written=12,
+            silver_records_written=120,
             warnings=["duplicate_rate above warning threshold"],
         )
 
         self.assertEqual(decision.status, "validated_with_warnings")
         self.assertIn("duplicate_rate", decision.block_reason)
+
+    def test_publish_gate_blocks_below_full_production_threshold(self):
+        decision = evaluate_publish_gate(
+            pipeline_mode="full",
+            run_class="production",
+            pipeline_status="success",
+            validation_status="pass",
+            silver_records_written=99,
+        )
+
+        self.assertEqual(decision.status, "blocked")
+        self.assertIn("below minimum 100", decision.block_reason)
+
+    def test_publish_thresholds_load_from_stage1_config(self):
+        thresholds = load_publish_thresholds(
+            pipeline_mode="full",
+            run_class="production",
+        )
+
+        self.assertEqual(thresholds.min_silver_records, 100)
+
+    def test_metadata_catalog_seed_exists_for_stage1_contracts(self):
+        docs_path = ROOT / "docs" / "metadata" / "table_catalog.md"
+        config_path = ROOT / "configs" / "metadata" / "table_catalog.json"
+
+        self.assertTrue(docs_path.exists())
+        self.assertTrue(config_path.exists())
+
+        catalog = json.loads(config_path.read_text(encoding="utf-8"))
+        table_names = {table["name"] for table in catalog["tables"]}
+
+        self.assertIn("production_run_summary", table_names)
+        self.assertIn("quarantine_records", table_names)
+        self.assertEqual(
+            catalog["source_systems"][0]["target_v2_config_pattern"],
+            "configs/sources/<source_code>.yaml",
+        )
 
     def test_preflight_writes_result_and_fails_missing_config(self):
         config_path = self.base_dir / "missing.yaml"

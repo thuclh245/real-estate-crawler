@@ -1,0 +1,80 @@
+{
+  "catalog_version": "stage1_seed_v1",
+  "source_systems": [
+    {
+      "source_code": "batdongsan",
+      "source_domain": "batdongsan.com.vn",
+      "current_config_paths": [
+        "configs/crawl_targets.yaml",
+        "configs/crawl_targets_scale.yaml",
+        "configs/team/priority_a_ha_noi.yaml",
+        "configs/team/priority_a_ha_noi_expand_01.yaml"
+      ],
+      "target_v2_config_pattern": "configs/sources/<source_code>.yaml",
+      "active_target_v2_config": "configs/sources/batdongsan.yaml"
+    }
+  ],
+  "tables": [
+    {
+      "name": "bronze_listings",
+      "layer": "bronze",
+      "path": "data/bronze/source=<source_code>/date=<run_date>/",
+      "grain": "raw fetched listing page or detail record",
+      "owner": "crawler",
+      "status": "current"
+    },
+    {
+      "name": "silver_listings",
+      "layer": "silver",
+      "path": "data/silver/source=<source_code>/date=<run_date>/",
+      "grain": "one parsed real-estate listing",
+      "owner": "bronze_to_silver",
+      "status": "current"
+    },
+    {
+      "name": "gold_listing_snapshot",
+      "layer": "gold",
+      "path": "data/gold/listing_snapshot/",
+      "grain": "one current listing snapshot row",
+      "owner": "silver_to_gold",
+      "status": "current"
+    },
+    {
+      "name": "quarantine_records",
+      "layer": "observability",
+      "path": "data/quarantine/<stage>/source=<source_code>/date=<run_date>/*.jsonl",
+      "grain": "one rejected input or parsed record",
+      "owner": "common.quarantine",
+      "status": "current"
+    },
+    {
+      "name": "production_run_summary",
+      "layer": "observability",
+      "path": "data/logs/pipeline_runs/run_id=<run_id>/run_summary.json",
+      "grain": "one production-oriented pipeline run",
+      "owner": "observability.run_summary.ProductionRunSummary",
+      "status": "current"
+    },
+    {
+      "name": "latest_production_pointer",
+      "layer": "observability",
+      "path": "data/logs/pipeline_runs/latest_production.json",
+      "grain": "latest published production run pointer",
+      "owner": "observability.run_summary.ProductionRunSummary",
+      "status": "current"
+    },
+    {
+      "name": "daily_run_summary",
+      "layer": "observability",
+      "path": "data/logs/daily_pipeline/run_date=<run_date>/daily_run_summary.json",
+      "grain": "one legacy daily pipeline run",
+      "owner": "observability.run_summary.DailyRunSummary",
+      "status": "compatibility"
+    }
+  ],
+  "publish_gate": {
+    "threshold_config_path": "configs/validation_thresholds.yaml",
+    "full_production_min_silver_records": 100,
+    "smoke_min_silver_records": 1
+  }
+}
