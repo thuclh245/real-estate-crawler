@@ -13,10 +13,16 @@ import csv
 import json
 import re
 import sys
+import unittest
 from datetime import datetime
 from pathlib import Path
 
 from bs4 import BeautifulSoup
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "src"))
+
+from crawler.sources.nhatot import NhatotAdapter
 
 BASE_URL = "https://www.nhatot.com"
 
@@ -396,6 +402,35 @@ def parse_args() -> argparse.Namespace:
     if args.page is not None and args.page < 1:
         parser.error("--page must be positive")
     return args
+
+
+class NhatotDiscoveryFixtureTest(unittest.TestCase):
+    def test_fixture_extraction_matches_adapter_baseline(self):
+        fixture = ROOT / "tests" / "fixtures" / "nhatot" / "list_page_sample.html"
+        html = fixture.read_text(encoding="utf-8")
+        district = {"name": "Cau Giay", "slug": "quan-cau-giay"}
+        category = {
+            "name": "Can ho",
+            "slug": "mua-ban-can-ho-chung-cu",
+            "category_id": 1010,
+            "property_type_group": "apartment",
+        }
+
+        discovery_rows = parse_listing_rows(
+            html=html,
+            page_url=build_page_url(district, category, 1),
+            district=district,
+            category=category,
+            page=1,
+            limit=2,
+        )
+        adapter_rows = NhatotAdapter().parse_list_page(html)
+
+        self.assertEqual(len(discovery_rows), 2)
+        self.assertEqual(len(adapter_rows), 2)
+        self.assertEqual(adapter_rows[0]["source"], "nhatot")
+        self.assertEqual(discovery_rows[0]["listing_id"], adapter_rows[0]["listing_id"])
+        self.assertEqual(discovery_rows[0]["title_raw"], adapter_rows[0]["listing_card_title"])
 
 
 if __name__ == "__main__":
