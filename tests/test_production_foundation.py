@@ -112,6 +112,8 @@ class ProductionFoundationTest(unittest.TestCase):
 
         self.assertIn("production_run_summary", table_names)
         self.assertIn("quarantine_records", table_names)
+        self.assertIn("fact_listing_snapshot", table_names)
+        self.assertIn("dim_listing", table_names)
         self.assertEqual(
             catalog["source_systems"][0]["target_v2_config_pattern"],
             "configs/sources/<source_code>.yaml",
