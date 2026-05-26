@@ -75,6 +75,42 @@ def run_sources_to_silver(
             or crawl_summary.get("parser_version")
             or ("nhatot_adapter_v0.1" if source_code == "nhatot" else "phase2_v1")
         )
+        metadata_dir = bronze_dir / "metadata"
+        if not metadata_dir.exists() and _continue_without_silver(config):
+            scorecard = build_source_scorecard(
+                crawl_summary=crawl_summary,
+                silver_quality_summary={
+                    "total_metadata_files": 0,
+                    "total_records_parsed": 0,
+                    "total_quarantined_records": 0,
+                    "parse_success_rate": 0.0,
+                },
+                quality_config=config.get("quality") or {},
+                artifact_paths=[str(bronze_dir / "crawl_log")],
+            )
+            scorecard_path = write_source_scorecard(scorecard, scorecard_root)
+            runs.append(
+                {
+                    "config_path": str(config_file),
+                    "source": source,
+                    "crawl_date": crawl_date,
+                    "crawl_id": crawl_id,
+                    "bronze_dir": str(bronze_dir),
+                    "silver_dir": str(silver_dir),
+                    "parser_version": parser_version,
+                    "status": "skipped_no_metadata",
+                    "skip_reason": "metadata folder not found after crawl",
+                    "silver_validation": {
+                        "listings_path": None,
+                        "row_count": 0,
+                        "lineage_columns": [],
+                    },
+                    "source_scorecard_path": str(scorecard_path),
+                    "source_scorecard": scorecard,
+                }
+            )
+            continue
+
         run_bronze_to_silver(
             bronze_dir=str(bronze_dir),
             silver_dir=str(silver_dir),
@@ -107,6 +143,7 @@ def run_sources_to_silver(
                 "bronze_dir": str(bronze_dir),
                 "silver_dir": str(silver_dir),
                 "parser_version": parser_version,
+                "status": "success",
                 "silver_validation": validation,
                 "source_scorecard_path": str(scorecard_path),
                 "source_scorecard": scorecard,
@@ -184,6 +221,11 @@ def _run_source_crawl(
 
 def _source_code(config: dict[str, Any]) -> str:
     return str(config.get("source_code") or config.get("source") or "unknown")
+
+
+def _continue_without_silver(config: dict[str, Any]) -> bool:
+    compatibility = config.get("compatibility") or {}
+    return str(compatibility.get("failure_policy") or "") == "continue_without_silver"
 
 
 def main() -> None:

@@ -55,7 +55,13 @@ def build_source_scorecard(
     )
     requested_count = _first_int(
         crawl_summary,
-        ("detail_pages_requested", "listing_pages_requested", "requested_count"),
+        (
+            "total_detail_pages_requested",
+            "detail_pages_requested",
+            "total_listing_pages_requested",
+            "listing_pages_requested",
+            "requested_count",
+        ),
         default=_safe_int(crawl_summary.get("success_count"))
         + _safe_int(crawl_summary.get("failed_count"))
         + blocked_count,
@@ -94,6 +100,8 @@ def build_source_scorecard(
         "failed_count": _safe_int(crawl_summary.get("failed_count")),
         "blocked_count": blocked_count,
         "blocked_rate": _rate(blocked_count, requested_count),
+        "block_reasons": dict(crawl_summary.get("block_reasons") or {}),
+        "halt_reason": crawl_summary.get("halt_reason"),
     }
     gate_decision = evaluate_source_quality_gate(metrics, quality_config)
 

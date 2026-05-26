@@ -8,9 +8,9 @@ base_url: https://www.nhatot.com
 crawl:
   max_pages_per_target: 1
   max_listings_per_target: 13
-  request_delay_seconds: 1.5
+  request_delay_seconds: 10
   concurrency: 1
-  max_retries: 1
+  max_retries: 0
   retry_delay_seconds: 10
 
 compatibility:
@@ -18,6 +18,7 @@ compatibility:
   production_enabled: true
   production_scope: silver_only
   onboarding_status: production_house_150
+  failure_policy: continue_without_silver
 
 promotion:
   promotion_status: blocked

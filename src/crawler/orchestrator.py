@@ -7,9 +7,10 @@ from pathlib import Path
 from typing import Callable
 
 from crawler.block_detector import (
+    block_error_message,
     classify_failure_status,
+    detect_block_reason,
     increment_http_counters,
-    is_blocked_page,
 )
 from crawler.bronze_writer import (
     build_listing_paths,
@@ -126,6 +127,8 @@ class CrawlOrchestrator:
             "blocked_count": 0,
             "http_403_count": 0,
             "http_429_count": 0,
+            "block_reasons": {},
+            "halt_reason": None,
             "duplicate_url_count": 0,
             "raw_html_file_count": 0,
             "metadata_file_count": 0,
@@ -147,6 +150,7 @@ class CrawlOrchestrator:
         detail_audits: list[dict] = []
         audit_samples: list[dict] = []
         expanded_targets = expand_targets(self.config)
+        halt_crawl = False
         known_location_labels = sorted(
             {
                 label
@@ -158,6 +162,9 @@ class CrawlOrchestrator:
         )
 
         for target in expanded_targets:
+            if halt_crawl:
+                break
+
             category = target["category"]
             city = get_target_city(target)
             location_path = get_target_location_path(target)
@@ -268,7 +275,13 @@ class CrawlOrchestrator:
                         time.sleep(delay)
 
                     if http_status != 200:
-                        list_page_blocked = is_blocked_page(http_status, html)
+                        block_reason = detect_block_reason(http_status, html)
+                        list_page_blocked = block_reason is not None
+                        error_message = (
+                            block_error_message(block_reason)
+                            if list_page_blocked
+                            else f"HTTP {http_status}"
+                        )
                         self._save_list_page_debug(
                             debug_list_root=debug_list_root,
                             crawl_id=crawl_id,
@@ -283,17 +296,17 @@ class CrawlOrchestrator:
                             html=html,
                             listing_urls_found=0,
                             is_blocked=list_page_blocked,
-                            error_message=(
-                                "Blocked by anti-bot protection"
-                                if list_page_blocked
-                                else f"HTTP {http_status}"
-                            ),
+                            block_reason=block_reason,
+                            error_message=error_message,
                         )
 
                         if list_page_blocked:
                             summary["blocked_count"] += 1
                             summary["failed_count"] += 1
                             summary["listing_page_failed_count"] += 1
+                            summary["block_reasons"][block_reason] = (
+                                summary["block_reasons"].get(block_reason, 0) + 1
+                            )
                             increment_http_counters(summary, http_status)
 
                             append_jsonl(
@@ -308,7 +321,8 @@ class CrawlOrchestrator:
                                     "http_status": http_status,
                                     "html_length": html_length,
                                     "html_preview": html_preview,
-                                    "error_message": "Blocked by anti-bot protection",
+                                    "block_reason": block_reason,
+                                    "error_message": error_message,
                                     "retry_count": retry_count,
                                     "is_seed_url_valid": is_seed_url_valid,
                                     "scraped_at": now_utc_iso(),
@@ -316,6 +330,8 @@ class CrawlOrchestrator:
                             )
 
                             if stop_on_block:
+                                summary["halt_reason"] = f"blocked:{block_reason}"
+                                halt_crawl = True
                                 break
                             continue
 
@@ -347,9 +363,11 @@ class CrawlOrchestrator:
                         html
                     )
 
-                    list_page_blocked = is_blocked_page(
+                    block_reason = detect_block_reason(
                         http_status, html, listing_urls_found=len(listing_entries)
                     )
+                    list_page_blocked = block_reason is not None
+                    error_message = block_error_message(block_reason)
                     self._save_list_page_debug(
                         debug_list_root=debug_list_root,
                         crawl_id=crawl_id,
@@ -364,17 +382,17 @@ class CrawlOrchestrator:
                         html=html,
                         listing_urls_found=len(listing_entries),
                         is_blocked=list_page_blocked,
-                        error_message=(
-                            "Blocked by anti-bot protection"
-                            if list_page_blocked
-                            else None
-                        ),
+                        block_reason=block_reason,
+                        error_message=error_message,
                     )
 
                     if list_page_blocked:
                         summary["blocked_count"] += 1
                         summary["failed_count"] += 1
                         summary["listing_page_failed_count"] += 1
+                        summary["block_reasons"][block_reason] = (
+                            summary["block_reasons"].get(block_reason, 0) + 1
+                        )
                         increment_http_counters(summary, http_status)
 
                         append_jsonl(
@@ -389,7 +407,8 @@ class CrawlOrchestrator:
                                 "http_status": http_status,
                                 "html_length": html_length,
                                 "html_preview": html_preview,
-                                "error_message": "Blocked by anti-bot protection",
+                                "block_reason": block_reason,
+                                "error_message": error_message,
                                 "retry_count": retry_count,
                                 "is_seed_url_valid": is_seed_url_valid,
                                 "scraped_at": now_utc_iso(),
@@ -397,6 +416,8 @@ class CrawlOrchestrator:
                         )
 
                         if stop_on_block:
+                            summary["halt_reason"] = f"blocked:{block_reason}"
+                            halt_crawl = True
                             break
                         continue
 
@@ -881,6 +902,7 @@ class CrawlOrchestrator:
         html: str,
         listing_urls_found: int,
         is_blocked: bool,
+        block_reason: str | None = None,
         error_message: str | None = None,
     ) -> tuple[Path, Path]:
         category = target["category"]
@@ -905,6 +927,7 @@ class CrawlOrchestrator:
                 "html_length": len(html or ""),
                 "listing_urls_found": listing_urls_found,
                 "is_blocked": is_blocked,
+                "block_reason": block_reason,
                 "target_business_type": target.get("business_type"),
                 "target_category": category,
                 "target_category_label": target.get("category_label"),

@@ -121,6 +121,24 @@ class SourcesToSilverPipelineTest(unittest.TestCase):
         )
         return path
 
+    def _write_blocked_nhatot_config(self) -> Path:
+        config = yaml.safe_load(
+            (ROOT / "configs" / "sources" / "nhatot_house_150.yaml").read_text(
+                encoding="utf-8"
+            )
+        )
+        config["crawl"]["request_delay_seconds"] = 0
+        config["crawl"]["max_listings_per_target"] = 1
+        config["quality"]["min_expected_records"] = 1
+        config["targets"] = config["targets"][:1]
+        path = self.base_dir / "configs" / "nhatot_blocked.yaml"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            yaml.safe_dump(config, allow_unicode=True, sort_keys=False),
+            encoding="utf-8",
+        )
+        return path
+
     def test_runner_writes_source_aware_bronze_silver_and_scorecards(self):
         summary = run_sources_to_silver(
             config_paths=[self._write_batdongsan_config(), self._write_nhatot_config()],
@@ -161,6 +179,75 @@ class SourcesToSilverPipelineTest(unittest.TestCase):
         )
         self.assertEqual(scorecard["source_code"], "nhatot")
         self.assertEqual(scorecard["gate_status"], "pass")
+
+    def test_optional_source_with_no_metadata_writes_failed_scorecard_without_crashing(self):
+        def blocked_fetch(url: str, mode: str, max_retries: int, retry_delay_seconds: float):
+            return 200, "<html><body>Access denied</body></html>", url, 0, None
+
+        summary = run_sources_to_silver(
+            config_paths=[self._write_blocked_nhatot_config()],
+            base_dir=self.base_dir,
+            fetch_with_retry_fn=blocked_fetch,
+        )
+
+        self.assertEqual(summary["source_names"], ["nhatot"])
+        run = summary["runs"][0]
+        self.assertEqual(run["status"], "skipped_no_metadata")
+        self.assertEqual(run["silver_validation"]["row_count"], 0)
+        self.assertFalse((Path(run["silver_dir"]) / "listings.parquet").exists())
+
+        scorecard = json.loads(
+            Path(run["source_scorecard_path"]).read_text(encoding="utf-8")
+        )
+        self.assertEqual(scorecard["source_code"], "nhatot")
+        self.assertEqual(scorecard["total_records"], 0)
+        self.assertEqual(scorecard["parse_success_rate"], 0.0)
+        self.assertEqual(scorecard["gate_status"], "fail")
+        self.assertTrue(scorecard["gate_failures"])
+
+    def test_nhatot_cloudflare_block_halts_remaining_targets(self):
+        config_path = self._write_blocked_nhatot_config()
+        config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+        second_target = dict(config["targets"][0])
+        second_target["location_slug"] = "quan-cau-giay"
+        second_target["location_path"] = "quan-cau-giay-ha-noi"
+        second_target["location_label"] = "Cau Giay"
+        second_target["seed_url"] = (
+            "https://www.nhatot.com/mua-ban-nha-dat-quan-cau-giay-ha-noi?page=4"
+        )
+        config["targets"] = [config["targets"][0], second_target]
+        config_path.write_text(
+            yaml.safe_dump(config, allow_unicode=True, sort_keys=False),
+            encoding="utf-8",
+        )
+        calls = []
+        challenge_html = (
+            "<html><head><title>Just a moment...</title>"
+            '<script src="https://challenges.cloudflare.com/turnstile/v0/api.js"></script>'
+            "</head></html>"
+        )
+
+        def cloudflare_fetch(url: str, mode: str, max_retries: int, retry_delay_seconds: float):
+            calls.append(url)
+            return 307, challenge_html, url, 0, None
+
+        summary = run_sources_to_silver(
+            config_paths=[config_path],
+            base_dir=self.base_dir,
+            fetch_with_retry_fn=cloudflare_fetch,
+        )
+
+        run = summary["runs"][0]
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(run["source_scorecard"]["blocked_count"], 1)
+        self.assertEqual(
+            run["source_scorecard"]["block_reasons"],
+            {"cloudflare_turnstile": 1},
+        )
+        self.assertEqual(
+            run["source_scorecard"]["halt_reason"],
+            "blocked:cloudflare_turnstile",
+        )
 
 
 if __name__ == "__main__":
