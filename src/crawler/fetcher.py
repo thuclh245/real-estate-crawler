@@ -1,6 +1,7 @@
 import asyncio
 import random
 import time
+from urllib.parse import parse_qs, urlsplit
 
 import requests
 
@@ -44,15 +45,17 @@ def fetch_with_retry(
         try:
             from crawler.sources.nhatot.adapter import DISTRICT_MAPPING, CATEGORY_MAPPING
             page = 1
-            if "page=" in url:
+            parsed = urlsplit(url)
+            query_page = parse_qs(parsed.query).get("page", [None])[-1]
+            if query_page:
                 try:
-                    page = int(url.split("page=")[-1].split("&")[0])
-                except:
+                    page = int(query_page)
+                except (TypeError, ValueError):
                     pass
-            elif "/p" in url:
+            elif "/p" in parsed.path:
                 try:
-                    page = int(url.split("/p")[-1].split("?")[0])
-                except:
+                    page = int(parsed.path.rsplit("/p", 1)[-1])
+                except (TypeError, ValueError):
                     pass
 
             cg_id = 1000

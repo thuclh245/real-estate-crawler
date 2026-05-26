@@ -2,6 +2,7 @@
   "ads": [
     {
       "ad_id": 333,
+      "list_id": 3330,
       "category_slug": "mua-ban-can-ho-chung-cu",
       "location_slug": "quan-ba-dinh-ha-noi",
       "subject": "Can ho API Ba Dinh",
@@ -18,6 +19,7 @@
       "toilets": 2
     },
     {
+      "ad_id": 4440,
       "list_id": 444,
       "category_slug": "mua-ban-nha-dat",
       "location_slug": "quan-dong-da-ha-noi",

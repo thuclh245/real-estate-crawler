@@ -47,6 +47,7 @@ def build_smoke_crawl_config(source_config: dict) -> dict:
         raise ValueError(f"Expected source_code=nhatot, got {source_code!r}")
 
     crawl = source_config.get("crawl") or {}
+    api = source_config.get("api") or {}
     targets = source_config.get("targets") or []
     if not targets:
         raise ValueError("Nhatot source config must define at least one smoke target")
@@ -67,6 +68,7 @@ def build_smoke_crawl_config(source_config: dict) -> dict:
             "retry_delay_seconds": float(crawl.get("retry_delay_seconds", 10)),
             "crawler_version": "nhatot_smoke_v0.1",
             "parser_version": "nhatot_adapter_v0.1",
+            "daily_listing_cap": int(api.get("daily_listing_cap", 0) or 0),
         },
         "targets": targets,
     }

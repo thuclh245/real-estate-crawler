@@ -143,7 +143,7 @@ class NhatotAdapterTest(unittest.TestCase):
         self.assertEqual(first["listing_id"], "333")
         self.assertEqual(
             first["listing_url"],
-            "https://www.nhatot.com/mua-ban-can-ho-chung-cu-quan-ba-dinh-ha-noi/333.htm",
+            "https://www.nhatot.com/mua-ban-can-ho-chung-cu-quan-ba-dinh-ha-noi/3330.htm",
         )
         self.assertEqual(first["listing_card_title"], "Can ho API Ba Dinh")
         self.assertEqual(first["listing_card_price_raw"], "4,5 ty")
@@ -160,7 +160,11 @@ class NhatotAdapterTest(unittest.TestCase):
         self.assertEqual(first["area_m2"], 72)
 
         second = entries[1]
-        self.assertEqual(second["listing_id"], "444")
+        self.assertEqual(second["listing_id"], "4440")
+        self.assertEqual(
+            second["listing_url"],
+            "https://www.nhatot.com/mua-ban-nha-dat-quan-dong-da-ha-noi/444.htm",
+        )
         self.assertIsNone(second["listing_card_price_raw"])
         self.assertIsNone(second["listing_card_area_raw"])
         self.assertEqual(second["listing_card_location_raw"], "Dong Da, Ha Noi")

@@ -144,6 +144,11 @@ def param_value(ad: dict[str, Any], param_id: str) -> str | None:
 
 
 def extract_listing_id(ad: dict[str, Any]) -> str | None:
+    value = ad.get("ad_id") or ad.get("id") or ad.get("list_id")
+    return str(value) if value is not None else None
+
+
+def extract_public_listing_id(ad: dict[str, Any]) -> str | None:
     value = ad.get("list_id") or ad.get("ad_id") or ad.get("id")
     return str(value) if value is not None else None
 
@@ -153,7 +158,7 @@ def build_listing_url(ad: dict[str, Any], base_url: str = DEFAULT_BASE_URL) -> s
     if raw_url:
         return urljoin(base_url, raw_url)
 
-    listing_id = extract_listing_id(ad)
+    listing_id = extract_public_listing_id(ad)
     if not listing_id:
         return None
 
@@ -286,14 +291,19 @@ class NhatotAdapter:
                 normalized_ads = []
 
                 for ad in ads:
-                    ad_id = ad.get("ad_id") or ad.get("list_id")
-                    if ad_id is None:
+                    listing_id = extract_listing_id(ad)
+                    if listing_id is None:
                         continue
                     category_slug = infer_category_slug(ad)
                     location_slug = infer_location_slug(ad)
+                    public_listing_id = extract_public_listing_id(ad) or listing_id
 
-                    # Generate the real public Web URL
-                    web_url = f"https://www.nhatot.com/{category_slug}-{location_slug}/{ad_id}.htm"
+                    # Generate the real public Web URL. Chotot/Nhatot API exposes
+                    # both ad_id and list_id; public web detail URLs use list_id.
+                    web_url = (
+                        f"https://www.nhatot.com/{category_slug}-{location_slug}/"
+                        f"{public_listing_id}.htm"
+                    )
 
                     # Store the complete ad dictionary in our global cache, keying by the real web URL!
                     IN_MEMORY_AD_CACHE[web_url] = json.dumps(ad)
@@ -304,7 +314,7 @@ class NhatotAdapter:
                     normalized = {
                         "source": "nhatot",
                         "source_code": "nhatot",
-                        "listing_id": str(ad_id),
+                        "listing_id": str(listing_id),
                         "listing_url": web_url,  # Point orchestrator to web URL (which intercepts standard fetch)
                         "listing_card_title": clean_text(ad.get("subject")),
                         "listing_card_price_raw": clean_text(ad.get("price_string")),

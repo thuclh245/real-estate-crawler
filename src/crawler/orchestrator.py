@@ -5,6 +5,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 from typing import Callable
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from crawler.block_detector import (
     block_error_message,
@@ -76,6 +77,30 @@ class CrawlDependencies:
     source_adapter: SourceAdapter = field(default_factory=BatdongsanAdapter)
 
 
+def seed_url_for_page(seed_url: str, page_number: int) -> str:
+    parsed = urlsplit(seed_url)
+    query_pairs = parse_qsl(parsed.query, keep_blank_values=True)
+    page_indexes = [
+        idx for idx, (key, _value) in enumerate(query_pairs) if key == "page"
+    ]
+    if page_number <= 1 and not page_indexes:
+        return seed_url
+    if not page_indexes:
+        return f"{seed_url}/p{page_number}"
+
+    page_idx = page_indexes[-1]
+    query_pairs[page_idx] = ("page", str(page_number))
+    return urlunsplit(
+        (
+            parsed.scheme,
+            parsed.netloc,
+            parsed.path,
+            urlencode(query_pairs, doseq=True),
+            parsed.fragment,
+        )
+    )
+
+
 class CrawlOrchestrator:
     def __init__(
         self,
@@ -98,6 +123,7 @@ class CrawlOrchestrator:
 
         max_pages = settings.get("max_pages_per_target", 2)
         max_listings = settings.get("max_listings_per_target", 50)
+        daily_listing_cap = int(settings.get("daily_listing_cap", 0) or 0)
         delay = settings.get("request_delay_seconds", 2)
         fetch_mode = str(settings.get("fetch_mode", "requests"))
         stop_on_block = bool(settings.get("stop_on_block", True))
@@ -139,6 +165,7 @@ class CrawlOrchestrator:
             "bronze_layout": "crawl_id_partitioned",
             "max_retries": max_retries,
             "retry_delay_seconds": retry_delay_seconds,
+            "daily_listing_cap": daily_listing_cap,
             "records": [],
         }
 
@@ -182,11 +209,7 @@ class CrawlOrchestrator:
 
             for page_number in range(1, max_pages + 1):
                 if seed_url_override:
-                    page_url = (
-                        seed_url_override
-                        if page_number == 1
-                        else f"{seed_url_override}/p{page_number}"
-                    )
+                    page_url = seed_url_for_page(seed_url_override, page_number)
                 else:
                     page_url = build_seed_url(
                         base_url, category, location_path, page_number
@@ -497,6 +520,15 @@ class CrawlOrchestrator:
             target_listing_entries = list(deduped_entries_by_url.values())[
                 :max_listings
             ]
+            if daily_listing_cap > 0:
+                remaining_listing_slots = (
+                    daily_listing_cap - len(requested_detail_urls)
+                )
+                if remaining_listing_slots <= 0:
+                    summary["halt_reason"] = "daily_listing_cap_reached"
+                    halt_crawl = True
+                    break
+                target_listing_entries = target_listing_entries[:remaining_listing_slots]
             summary["total_listing_urls_found"] += len(target_listing_entries)
 
             for listing_entry in target_listing_entries:

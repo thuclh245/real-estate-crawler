@@ -7,11 +7,6 @@ from .schema_utils import ensure_columns
 
 
 def add_dedup_key(df):
-    if "dedup_key" in df.columns:
-        if "dedup_method" not in df.columns:
-            df = df.withColumn("dedup_method", F.lit("preexisting"))
-        return df
-
     source_col = (
         F.coalesce(F.col("source").cast("string"), F.lit("unknown_source"))
         if "source" in df.columns
@@ -95,8 +90,37 @@ def add_dedup_key(df):
     else:
         dedup_method_expr = F.lit("content_hash")
 
-    return df.withColumn("dedup_key", dedup_key_expr).withColumn(
-        "dedup_method", dedup_method_expr
+    if "dedup_key" not in df.columns:
+        return df.withColumn("dedup_key", dedup_key_expr).withColumn(
+            "dedup_method", dedup_method_expr
+        )
+
+    existing_key_col = "__existing_dedup_key"
+    had_existing_key_col = "__had_existing_dedup_key"
+    df = df.withColumn(existing_key_col, F.trim(F.col("dedup_key").cast("string")))
+    df = df.withColumn(had_existing_key_col, F.length(F.col(existing_key_col)) > 0)
+    df = df.withColumn(
+        "dedup_key",
+        F.when(F.col(had_existing_key_col), F.col(existing_key_col)).otherwise(
+            dedup_key_expr
+        ),
+    )
+
+    if "dedup_method" in df.columns:
+        existing_method = F.trim(F.col("dedup_method").cast("string"))
+        has_existing_method = F.length(existing_method) > 0
+        dedup_method = (
+            F.when(has_existing_method, existing_method)
+            .when(F.col(had_existing_key_col), F.lit("preexisting"))
+            .otherwise(dedup_method_expr)
+        )
+    else:
+        dedup_method = F.when(
+            F.col(had_existing_key_col), F.lit("preexisting")
+        ).otherwise(dedup_method_expr)
+
+    return df.withColumn("dedup_method", dedup_method).drop(
+        existing_key_col, had_existing_key_col
     )
 
 
