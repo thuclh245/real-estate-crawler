@@ -543,9 +543,11 @@ class CrawlOrchestrator:
                             f"  CATEGORY AUDIT: {category_match_status} for {listing_url}"
                         )
 
-                    listing_id = basic_fields.get(
-                        "listing_id"
-                    ) or get_listing_id_or_hash(listing_url)
+                    listing_id = (
+                        listing_entry.get("listing_id")
+                        or basic_fields.get("listing_id")
+                        or get_listing_id_or_hash(listing_url)
+                    )
 
                     paths = build_listing_paths(
                         listing_id=listing_id,
@@ -609,6 +611,14 @@ class CrawlOrchestrator:
                         "listing_card_old_district_raw": listing_entry.get(
                             "listing_card_old_district_raw"
                         ),
+                        "source_code": listing_entry.get("source_code") or source,
+                        "price_vnd": listing_entry.get("price_vnd"),
+                        "area_m2": listing_entry.get("area_m2"),
+                        "bedroom_count": listing_entry.get("bedroom_count"),
+                        "bathroom_count": listing_entry.get("bathroom_count"),
+                        "city_raw": listing_entry.get("city_raw"),
+                        "district_raw": listing_entry.get("district_raw"),
+                        "ward_raw": listing_entry.get("ward_raw"),
                         "breadcrumb_raw": detail_fields.get("breadcrumb_raw"),
                         "breadcrumb_location_raw": detail_fields.get(
                             "breadcrumb_location_raw"

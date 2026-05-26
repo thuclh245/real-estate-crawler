@@ -10,21 +10,21 @@ $ProjectDir = if ($env:PROJECT_DIR) { $env:PROJECT_DIR } else { (Resolve-Path (J
 $PythonExe = Join-Path $ProjectDir ".venv\Scripts\python.exe"
 if (-not (Test-Path $PythonExe)) { $PythonExe = "python" }
 $Bucket = if ($env:GCS_BUCKET) { $env:GCS_BUCKET } else { "gs://bigdata-subject-real-estate-lakehouse" }
-$CrawlConfigsRaw = if ($env:CRAWL_CONFIGS) { $env:CRAWL_CONFIGS } else { "configs/team/priority_a_ha_noi.yaml,configs/team/priority_a_ha_noi_expand_01.yaml" }
+$CrawlConfigsRaw = if ($env:CRAWL_CONFIGS) { $env:CRAWL_CONFIGS } else { "configs/team/batdongsan_house_150.yaml,configs/sources/nhatot_house_150.yaml" }
 $CrawlDate = if ($env:CRAWL_DATE) { $env:CRAWL_DATE } else { Get-Date -Format "yyyy-MM-dd" }
-$SyncToGcs = if ($env:SYNC_TO_GCS) { $env:SYNC_TO_GCS } else { "false" }
+$SyncToGcs = if ($env:SYNC_TO_GCS) { $env:SYNC_TO_GCS } else { "true" }
 
 $RunId = if ($env:RUN_ID) { $env:RUN_ID } else { "daily_" + (Get-Date -Format "yyyyMMdd_HHmmss") }
 $LogDir = Join-Path $ProjectDir "data\logs\daily_pipeline"
 $LogFile = Join-Path $LogDir "$RunId.log"
-$BronzeDateDir = Join-Path $ProjectDir "data\bronze\source=batdongsan\crawl_date=$CrawlDate"
-$SilverDateDir = Join-Path $ProjectDir "data\silver\source=batdongsan\crawl_date=$CrawlDate"
 $StartTime = Get-Date
 $PipelineStatus = "running"
 $ValidationStatus = "not_started"
 $GcsSyncStatus = "not_started"
 $ErrorMessage = ""
 $CrawlIdsCreated = New-Object System.Collections.Generic.List[string]
+$SourceNamesCreated = New-Object System.Collections.Generic.List[string]
+$InputSilverPartitions = New-Object System.Collections.Generic.List[string]
 
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 $env:PYTHONPATH = "src"
@@ -62,6 +62,8 @@ function Write-Observability {
     $env:OBS_DURATION_SECONDS = "$duration"
     $env:OBS_CRAWL_CONFIGS = $CrawlConfigsRaw
     $env:OBS_CRAWL_IDS_CREATED = ($CrawlIdsCreated -join ",")
+    $env:OBS_SOURCE_NAMES = ($SourceNamesCreated | Select-Object -Unique) -join ","
+    $env:OBS_INPUT_SILVER_PARTITIONS = ($InputSilverPartitions -join ",")
 
     & $PythonExe -c @"
 import json
@@ -105,16 +107,13 @@ production_summary = ProductionRunSummary().generate_summary(
     duration_seconds=int(os.environ['OBS_DURATION_SECONDS']),
     pipeline_mode=os.environ['OBS_PIPELINE_MODE'],
     run_class='production' if os.environ['OBS_PIPELINE_MODE'] == 'full' else 'smoke',
-    source_names=['batdongsan'],
+    source_names=[x.strip() for x in os.environ.get('OBS_SOURCE_NAMES', '').split(',') if x.strip()],
     crawl_ids_created=summary['crawl_ids_created'],
     crawl_configs=summary['crawl_configs'],
     gold_summary=gold_summary,
     publish_status=decision.status,
     publish_block_reason=decision.block_reason,
-    input_silver_partitions=[
-        f"source=batdongsan/crawl_date={os.environ['OBS_RUN_DATE']}/{crawl_id}"
-        for crawl_id in summary['crawl_ids_created']
-    ],
+    input_silver_partitions=[x.strip() for x in os.environ.get('OBS_INPUT_SILVER_PARTITIONS', '').split(',') if x.strip()],
     published_outputs=['data/gold'] if decision.status == 'published' else [],
     error_message=os.environ.get('OBS_ERROR_MESSAGE') or None,
 )
@@ -150,26 +149,22 @@ for path in report.write_reports(summary['run_date'], 'data/reports', include_js
     Assert-NativeSuccess "write observability"
 }
 
-function Invoke-CrawlAndSilver {
-    param([string]$ConfigPath)
-    Write-Log "[1] Crawl + Bronze-to-Silver: $ConfigPath"
-    $before = @()
-    if (Test-Path $BronzeDateDir) {
-        $before = Get-ChildItem $BronzeDateDir -Directory | ForEach-Object { $_.FullName }
+function Invoke-SourcesToSilver {
+    param([string[]]$ConfigPaths)
+    Write-Log "[1] Source-aware Crawl + Bronze-to-Silver"
+    $summaryPath = Join-Path $LogDir "$RunId.sources_to_silver.json"
+    $runnerArgs = @("-m", "pipeline.sources_to_silver", "--base-dir", (Join-Path $ProjectDir "data"), "--summary-output", $summaryPath)
+    foreach ($configPath in $ConfigPaths) {
+        $runnerArgs += @("--config", $configPath)
     }
-    & $PythonExe -m crawler.crawl --config $ConfigPath *>&1 | Tee-Object -FilePath $LogFile -Append
-    Assert-NativeSuccess "crawl step"
-    $after = @()
-    if (Test-Path $BronzeDateDir) {
-        $after = Get-ChildItem $BronzeDateDir -Directory | ForEach-Object { $_.FullName }
-    }
-    $newDirs = $after | Where-Object { $before -notcontains $_ }
-    if (-not $newDirs) { throw "No new crawl_id directory found after $ConfigPath" }
-    foreach ($bronzeDir in $newDirs) {
-        $crawlId = Split-Path $bronzeDir -Leaf
-        $CrawlIdsCreated.Add($crawlId) | Out-Null
-        & $PythonExe -m transform.bronze_to_silver --bronze-dir $bronzeDir --silver-dir (Join-Path $SilverDateDir $crawlId) *>&1 | Tee-Object -FilePath $LogFile -Append
-        Assert-NativeSuccess "bronze-to-silver step for $crawlId"
+    & $PythonExe @runnerArgs *>&1 | Tee-Object -FilePath $LogFile -Append
+    Assert-NativeSuccess "sources-to-silver step"
+
+    $runnerSummary = Get-Content -Path $summaryPath -Raw | ConvertFrom-Json
+    foreach ($run in $runnerSummary.runs) {
+        $CrawlIdsCreated.Add([string]$run.crawl_id) | Out-Null
+        $SourceNamesCreated.Add([string]$run.source) | Out-Null
+        $InputSilverPartitions.Add("source=$($run.source)/crawl_date=$($run.crawl_date)/crawl_id=$($run.crawl_id)") | Out-Null
     }
 }
 
@@ -189,7 +184,7 @@ try {
     if ($Mode -eq "full") { $preflightArgs += "--require-spark" }
     & $PythonExe @preflightArgs *>&1 | Tee-Object -FilePath $LogFile -Append
     Assert-NativeSuccess "preflight"
-    foreach ($config in $configs) { Invoke-CrawlAndSilver $config }
+    Invoke-SourcesToSilver $configs
 
     if ($Mode -eq "smoke") {
         $script:PipelineStatus = "success"

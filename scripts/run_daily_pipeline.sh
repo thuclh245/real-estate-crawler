@@ -3,7 +3,7 @@ set -euo pipefail
 
 PROJECT_DIR="${PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 BUCKET="${GCS_BUCKET:-gs://bigdata-subject-real-estate-lakehouse}"
-CRAWL_CONFIGS="${CRAWL_CONFIGS:-configs/team/priority_a_ha_noi.yaml,configs/team/priority_a_ha_noi_expand_01.yaml}"
+CRAWL_CONFIGS="${CRAWL_CONFIGS:-configs/team/batdongsan_house_150.yaml,configs/sources/nhatot_house_150.yaml}"
 CRAWL_DATE="${CRAWL_DATE:-$(date +%Y-%m-%d)}"
 PIPELINE_MODE="${PIPELINE_MODE:-full}"
 SYNC_TO_GCS="${SYNC_TO_GCS:-true}"
@@ -16,8 +16,6 @@ fi
 
 LOG_DIR="$PIPELINE_LOG_DIR"
 LOG_FILE="$LOG_DIR/$RUN_ID.log"
-BRONZE_DATE_DIR="$PROJECT_DIR/data/bronze/source=batdongsan/crawl_date=$CRAWL_DATE"
-SILVER_DATE_DIR="$PROJECT_DIR/data/silver/source=batdongsan/crawl_date=$CRAWL_DATE"
 START_TIME_ISO="$(date -Is)"
 START_TIME_EPOCH="$(date +%s)"
 PIPELINE_STATUS="running"
@@ -25,6 +23,8 @@ VALIDATION_STATUS="not_started"
 GCS_SYNC_STATUS="not_started"
 ERROR_MESSAGE=""
 CRAWL_IDS_CREATED=""
+SOURCE_NAMES_CREATED=""
+INPUT_SILVER_PARTITIONS=""
 
 write_observability() {
   set +e
@@ -45,6 +45,8 @@ write_observability() {
   DURATION_SECONDS="$duration_seconds" \
   CRAWL_CONFIGS="$CRAWL_CONFIGS" \
   CRAWL_IDS_CREATED="$CRAWL_IDS_CREATED" \
+  SOURCE_NAMES_CREATED="$SOURCE_NAMES_CREATED" \
+  INPUT_SILVER_PARTITIONS="$INPUT_SILVER_PARTITIONS" \
   python - <<'PY'
 import json
 import os
@@ -91,16 +93,13 @@ production_summary = ProductionRunSummary().generate_summary(
     duration_seconds=int(os.environ["DURATION_SECONDS"]),
     pipeline_mode=os.environ["PIPELINE_MODE"],
     run_class="production" if os.environ["PIPELINE_MODE"] == "full" else "smoke",
-    source_names=["batdongsan"],
+    source_names=[x.strip() for x in os.environ.get("SOURCE_NAMES_CREATED", "").split(",") if x.strip()],
     crawl_ids_created=summary["crawl_ids_created"],
     crawl_configs=summary["crawl_configs"],
     gold_summary=gold_summary,
     publish_status=decision.status,
     publish_block_reason=decision.block_reason,
-    input_silver_partitions=[
-        f"source=batdongsan/crawl_date={os.environ['RUN_DATE']}/{crawl_id}"
-        for crawl_id in summary["crawl_ids_created"]
-    ],
+    input_silver_partitions=[x.strip() for x in os.environ.get("INPUT_SILVER_PARTITIONS", "").split(",") if x.strip()],
     published_outputs=["data/gold"] if decision.status == "published" else [],
     error_message=os.environ.get("ERROR_MESSAGE") or None,
 )
@@ -156,27 +155,16 @@ on_error() {
   exit "$exit_code"
 }
 
-run_crawl_and_silver() {
-  local config_path="$1"
-  local before_dirs after_dirs new_dirs
-  before_dirs="$(find "$BRONZE_DATE_DIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort || true)"
-  python -m crawler.crawl --config "$config_path"
-  after_dirs="$(find "$BRONZE_DATE_DIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort || true)"
-  new_dirs="$(comm -13 <(printf '%s\n' "$before_dirs" | sed '/^$/d' | sort) <(printf '%s\n' "$after_dirs" | sed '/^$/d' | sort) || true)"
-  if [[ -z "$new_dirs" ]]; then
-    echo "[ERROR] No new crawl_id directory found after $config_path"
-    exit 1
-  fi
-
-  while IFS= read -r bronze_crawl_dir; do
-    [[ -z "$bronze_crawl_dir" ]] && continue
-    local crawl_id
-    crawl_id="$(basename "$bronze_crawl_dir")"
-    CRAWL_IDS_CREATED="${CRAWL_IDS_CREATED}${CRAWL_IDS_CREATED:+,}$crawl_id"
-    python -m transform.bronze_to_silver \
-      --bronze-dir "$bronze_crawl_dir" \
-      --silver-dir "$SILVER_DATE_DIR/$crawl_id"
-  done <<< "$new_dirs"
+run_sources_to_silver() {
+  local summary_path="$LOG_DIR/$RUN_ID.sources_to_silver.json"
+  local runner_args=(--base-dir "$PROJECT_DIR/data" --summary-output "$summary_path")
+  for config_path in "$@"; do
+    runner_args+=(--config "$config_path")
+  done
+  python -m pipeline.sources_to_silver "${runner_args[@]}"
+  CRAWL_IDS_CREATED="$(python -c "import json,sys; data=json.load(open(sys.argv[1], encoding='utf-8')); print(','.join(run['crawl_id'] for run in data['runs']))" "$summary_path")"
+  SOURCE_NAMES_CREATED="$(python -c "import json,sys; data=json.load(open(sys.argv[1], encoding='utf-8')); print(','.join(sorted(set(run['source'] for run in data['runs']))))" "$summary_path")"
+  INPUT_SILVER_PARTITIONS="$(python -c "import json,sys; data=json.load(open(sys.argv[1], encoding='utf-8')); print(','.join(f\"source={run['source']}/crawl_date={run['crawl_date']}/crawl_id={run['crawl_id']}\" for run in data['runs']))" "$summary_path")"
 }
 
 trap on_error ERR
@@ -214,10 +202,8 @@ if [[ "$PIPELINE_MODE" == "full" ]]; then
 fi
 python -m src.validation.preflight "${PREFLIGHT_ARGS[@]}"
 
-for crawl_config in "${CRAWL_CONFIG_ARRAY[@]}"; do
-  echo "[1] Crawl + Bronze-to-Silver: $crawl_config"
-  run_crawl_and_silver "$crawl_config"
-done
+echo "[1] Source-aware Crawl + Bronze-to-Silver"
+run_sources_to_silver "${CRAWL_CONFIG_ARRAY[@]}"
 
 if [[ "$PIPELINE_MODE" == "smoke" ]]; then
   PIPELINE_STATUS="success"

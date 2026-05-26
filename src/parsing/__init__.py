@@ -8,7 +8,7 @@ from .contracts import BronzeListingMetadata, GoldListingRecord, SilverListingRe
 from .sources.batdongsan.feature_extractor import FEATURE_OUTPUT_KEYS, extract_features
 from .sources.batdongsan.feature_patterns import FEATURE_PATTERNS
 from .sources.batdongsan.feature_text_utils import build_search_text, normalize_text
-from .sources.batdongsan.silver_parser import parse_listing
+from .router import parse_listing
 
 __all__ = [
     "BronzeListingMetadata",

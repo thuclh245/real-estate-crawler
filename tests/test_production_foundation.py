@@ -159,7 +159,11 @@ class ProductionFoundationTest(unittest.TestCase):
             ROOT / "scripts" / "run_daily_pipeline.sh",
         ]:
             script_text = script_path.read_text(encoding="utf-8")
-            self.assertIn("source=batdongsan", script_text, script_path)
+            self.assertIn("configs/team/batdongsan_house_150.yaml", script_text)
+            self.assertIn("configs/sources/nhatot_house_150.yaml", script_text)
+            self.assertIn("pipeline.sources_to_silver", script_text, script_path)
+            self.assertIn("source_names=", script_text, script_path)
+            self.assertNotIn("source=batdongsan/crawl_date", script_text, script_path)
             self.assertNotIn("source=batdongsan" + ".com.vn", script_text, script_path)
 
     def test_quarantine_base_appends_jsonl_record(self):

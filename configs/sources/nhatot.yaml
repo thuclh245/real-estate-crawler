@@ -1,0 +1,370 @@
+source_code: nhatot
+source_domain: nhatot.com
+source_type: web_listing
+is_active: true
+fetch_mode: crawl4ai
+base_url: https://www.nhatot.com
+
+crawl:
+  max_pages_per_target: 1
+  max_listings_per_target: 5
+  request_delay_seconds: 1.5
+  concurrency: 1
+  max_retries: 1
+  retry_delay_seconds: 10
+
+compatibility:
+  current_config_paths: []
+  production_enabled: true
+  production_scope: silver_only
+  onboarding_status: silver_only_enabled
+
+promotion:
+  promotion_status: blocked
+  block_reason: legal_access_review_not_completed
+  production_candidate: true
+  required_successive_scorecard_passes: 1
+  legal_access_review:
+    terms_reviewed: false
+    robots_checked: false
+    prohibited_login_required: false
+    personal_contact_handling_documented: false
+    approved_fetch_mode_documented: true
+    no_captcha_bypass_required: true
+
+discovery_notes:
+  source_scope: Ha Noi district smoke targets only
+  approved_property_type_groups:
+    - apartment
+    - house
+  skipped_property_type_reason: Other categories have too few crawlable records for current onboarding.
+  user_reference_urls:
+    - https://www.nhatot.com/mua-ban-can-ho-chung-cu?page=2
+    - https://www.nhatot.com/mua-ban-nha-dat-quan-ba-dinh-ha-noi?page=4
+    - https://www.nhatot.com/mua-ban-nha-dat-quan-dong-da-ha-noi?page=4
+
+targets:
+  - business_type: sale
+    category: mua-ban-can-ho-chung-cu
+    category_label: Can ho chung cu
+    property_type_group: apartment
+    city_slug: ha-noi
+    city_label: Ha Noi
+    location_slug: quan-ba-dinh
+    location_path: quan-ba-dinh-ha-noi
+    location_label: Ba Dinh
+    location_level: district
+    priority_group: onboarding_smoke
+    seed_url: https://www.nhatot.com/mua-ban-can-ho-chung-cu-quan-ba-dinh-ha-noi?page=2
+
+  - business_type: sale
+    category: mua-ban-nha-dat
+    category_label: Nha dat
+    property_type_group: house
+    city_slug: ha-noi
+    city_label: Ha Noi
+    location_slug: quan-ba-dinh
+    location_path: quan-ba-dinh-ha-noi
+    location_label: Ba Dinh
+    location_level: district
+    priority_group: onboarding_smoke
+    seed_url: https://www.nhatot.com/mua-ban-nha-dat-quan-ba-dinh-ha-noi?page=4
+
+  - business_type: sale
+    category: mua-ban-can-ho-chung-cu
+    category_label: Can ho chung cu
+    property_type_group: apartment
+    city_slug: ha-noi
+    city_label: Ha Noi
+    location_slug: quan-bac-tu-liem
+    location_path: quan-bac-tu-liem-ha-noi
+    location_label: Bac Tu Liem
+    location_level: district
+    priority_group: onboarding_smoke
+    seed_url: https://www.nhatot.com/mua-ban-can-ho-chung-cu-quan-bac-tu-liem-ha-noi?page=2
+
+  - business_type: sale
+    category: mua-ban-nha-dat
+    category_label: Nha dat
+    property_type_group: house
+    city_slug: ha-noi
+    city_label: Ha Noi
+    location_slug: quan-bac-tu-liem
+    location_path: quan-bac-tu-liem-ha-noi
+    location_label: Bac Tu Liem
+    location_level: district
+    priority_group: onboarding_smoke
+    seed_url: https://www.nhatot.com/mua-ban-nha-dat-quan-bac-tu-liem-ha-noi?page=4
+
+  - business_type: sale
+    category: mua-ban-can-ho-chung-cu
+    category_label: Can ho chung cu
+    property_type_group: apartment
+    city_slug: ha-noi
+    city_label: Ha Noi
+    location_slug: quan-cau-giay
+    location_path: quan-cau-giay-ha-noi
+    location_label: Cau Giay
+    location_level: district
+    priority_group: onboarding_smoke
+    seed_url: https://www.nhatot.com/mua-ban-can-ho-chung-cu-quan-cau-giay-ha-noi?page=2
+
+  - business_type: sale
+    category: mua-ban-nha-dat
+    category_label: Nha dat
+    property_type_group: house
+    city_slug: ha-noi
+    city_label: Ha Noi
+    location_slug: quan-cau-giay
+    location_path: quan-cau-giay-ha-noi
+    location_label: Cau Giay
+    location_level: district
+    priority_group: onboarding_smoke
+    seed_url: https://www.nhatot.com/mua-ban-nha-dat-quan-cau-giay-ha-noi?page=4
+
+  - business_type: sale
+    category: mua-ban-can-ho-chung-cu
+    category_label: Can ho chung cu
+    property_type_group: apartment
+    city_slug: ha-noi
+    city_label: Ha Noi
+    location_slug: quan-dong-da
+    location_path: quan-dong-da-ha-noi
+    location_label: Dong Da
+    location_level: district
+    priority_group: onboarding_smoke
+    seed_url: https://www.nhatot.com/mua-ban-can-ho-chung-cu-quan-dong-da-ha-noi?page=2
+
+  - business_type: sale
+    category: mua-ban-nha-dat
+    category_label: Nha dat
+    property_type_group: house
+    city_slug: ha-noi
+    city_label: Ha Noi
+    location_slug: quan-dong-da
+    location_path: quan-dong-da-ha-noi
+    location_label: Dong Da
+    location_level: district
+    priority_group: onboarding_smoke
+    seed_url: https://www.nhatot.com/mua-ban-nha-dat-quan-dong-da-ha-noi?page=4
+
+  - business_type: sale
+    category: mua-ban-can-ho-chung-cu
+    category_label: Can ho chung cu
+    property_type_group: apartment
+    city_slug: ha-noi
+    city_label: Ha Noi
+    location_slug: quan-ha-dong
+    location_path: quan-ha-dong-ha-noi
+    location_label: Ha Dong
+    location_level: district
+    priority_group: onboarding_smoke
+    seed_url: https://www.nhatot.com/mua-ban-can-ho-chung-cu-quan-ha-dong-ha-noi?page=2
+
+  - business_type: sale
+    category: mua-ban-nha-dat
+    category_label: Nha dat
+    property_type_group: house
+    city_slug: ha-noi
+    city_label: Ha Noi
+    location_slug: quan-ha-dong
+    location_path: quan-ha-dong-ha-noi
+    location_label: Ha Dong
+    location_level: district
+    priority_group: onboarding_smoke
+    seed_url: https://www.nhatot.com/mua-ban-nha-dat-quan-ha-dong-ha-noi?page=4
+
+  - business_type: sale
+    category: mua-ban-can-ho-chung-cu
+    category_label: Can ho chung cu
+    property_type_group: apartment
+    city_slug: ha-noi
+    city_label: Ha Noi
+    location_slug: quan-hai-ba-trung
+    location_path: quan-hai-ba-trung-ha-noi
+    location_label: Hai Ba Trung
+    location_level: district
+    priority_group: onboarding_smoke
+    seed_url: https://www.nhatot.com/mua-ban-can-ho-chung-cu-quan-hai-ba-trung-ha-noi?page=2
+
+  - business_type: sale
+    category: mua-ban-nha-dat
+    category_label: Nha dat
+    property_type_group: house
+    city_slug: ha-noi
+    city_label: Ha Noi
+    location_slug: quan-hai-ba-trung
+    location_path: quan-hai-ba-trung-ha-noi
+    location_label: Hai Ba Trung
+    location_level: district
+    priority_group: onboarding_smoke
+    seed_url: https://www.nhatot.com/mua-ban-nha-dat-quan-hai-ba-trung-ha-noi?page=4
+
+  - business_type: sale
+    category: mua-ban-can-ho-chung-cu
+    category_label: Can ho chung cu
+    property_type_group: apartment
+    city_slug: ha-noi
+    city_label: Ha Noi
+    location_slug: quan-hoan-kiem
+    location_path: quan-hoan-kiem-ha-noi
+    location_label: Hoan Kiem
+    location_level: district
+    priority_group: onboarding_smoke
+    seed_url: https://www.nhatot.com/mua-ban-can-ho-chung-cu-quan-hoan-kiem-ha-noi?page=2
+
+  - business_type: sale
+    category: mua-ban-nha-dat
+    category_label: Nha dat
+    property_type_group: house
+    city_slug: ha-noi
+    city_label: Ha Noi
+    location_slug: quan-hoan-kiem
+    location_path: quan-hoan-kiem-ha-noi
+    location_label: Hoan Kiem
+    location_level: district
+    priority_group: onboarding_smoke
+    seed_url: https://www.nhatot.com/mua-ban-nha-dat-quan-hoan-kiem-ha-noi?page=4
+
+  - business_type: sale
+    category: mua-ban-can-ho-chung-cu
+    category_label: Can ho chung cu
+    property_type_group: apartment
+    city_slug: ha-noi
+    city_label: Ha Noi
+    location_slug: quan-hoang-mai
+    location_path: quan-hoang-mai-ha-noi
+    location_label: Hoang Mai
+    location_level: district
+    priority_group: onboarding_smoke
+    seed_url: https://www.nhatot.com/mua-ban-can-ho-chung-cu-quan-hoang-mai-ha-noi?page=2
+
+  - business_type: sale
+    category: mua-ban-nha-dat
+    category_label: Nha dat
+    property_type_group: house
+    city_slug: ha-noi
+    city_label: Ha Noi
+    location_slug: quan-hoang-mai
+    location_path: quan-hoang-mai-ha-noi
+    location_label: Hoang Mai
+    location_level: district
+    priority_group: onboarding_smoke
+    seed_url: https://www.nhatot.com/mua-ban-nha-dat-quan-hoang-mai-ha-noi?page=4
+
+  - business_type: sale
+    category: mua-ban-can-ho-chung-cu
+    category_label: Can ho chung cu
+    property_type_group: apartment
+    city_slug: ha-noi
+    city_label: Ha Noi
+    location_slug: quan-long-bien
+    location_path: quan-long-bien-ha-noi
+    location_label: Long Bien
+    location_level: district
+    priority_group: onboarding_smoke
+    seed_url: https://www.nhatot.com/mua-ban-can-ho-chung-cu-quan-long-bien-ha-noi?page=2
+
+  - business_type: sale
+    category: mua-ban-nha-dat
+    category_label: Nha dat
+    property_type_group: house
+    city_slug: ha-noi
+    city_label: Ha Noi
+    location_slug: quan-long-bien
+    location_path: quan-long-bien-ha-noi
+    location_label: Long Bien
+    location_level: district
+    priority_group: onboarding_smoke
+    seed_url: https://www.nhatot.com/mua-ban-nha-dat-quan-long-bien-ha-noi?page=4
+
+  - business_type: sale
+    category: mua-ban-can-ho-chung-cu
+    category_label: Can ho chung cu
+    property_type_group: apartment
+    city_slug: ha-noi
+    city_label: Ha Noi
+    location_slug: quan-nam-tu-liem
+    location_path: quan-nam-tu-liem-ha-noi
+    location_label: Nam Tu Liem
+    location_level: district
+    priority_group: onboarding_smoke
+    seed_url: https://www.nhatot.com/mua-ban-can-ho-chung-cu-quan-nam-tu-liem-ha-noi?page=2
+
+  - business_type: sale
+    category: mua-ban-nha-dat
+    category_label: Nha dat
+    property_type_group: house
+    city_slug: ha-noi
+    city_label: Ha Noi
+    location_slug: quan-nam-tu-liem
+    location_path: quan-nam-tu-liem-ha-noi
+    location_label: Nam Tu Liem
+    location_level: district
+    priority_group: onboarding_smoke
+    seed_url: https://www.nhatot.com/mua-ban-nha-dat-quan-nam-tu-liem-ha-noi?page=4
+
+  - business_type: sale
+    category: mua-ban-can-ho-chung-cu
+    category_label: Can ho chung cu
+    property_type_group: apartment
+    city_slug: ha-noi
+    city_label: Ha Noi
+    location_slug: quan-tay-ho
+    location_path: quan-tay-ho-ha-noi
+    location_label: Tay Ho
+    location_level: district
+    priority_group: onboarding_smoke
+    seed_url: https://www.nhatot.com/mua-ban-can-ho-chung-cu-quan-tay-ho-ha-noi?page=2
+
+  - business_type: sale
+    category: mua-ban-nha-dat
+    category_label: Nha dat
+    property_type_group: house
+    city_slug: ha-noi
+    city_label: Ha Noi
+    location_slug: quan-tay-ho
+    location_path: quan-tay-ho-ha-noi
+    location_label: Tay Ho
+    location_level: district
+    priority_group: onboarding_smoke
+    seed_url: https://www.nhatot.com/mua-ban-nha-dat-quan-tay-ho-ha-noi?page=4
+
+  - business_type: sale
+    category: mua-ban-can-ho-chung-cu
+    category_label: Can ho chung cu
+    property_type_group: apartment
+    city_slug: ha-noi
+    city_label: Ha Noi
+    location_slug: quan-thanh-xuan
+    location_path: quan-thanh-xuan-ha-noi
+    location_label: Thanh Xuan
+    location_level: district
+    priority_group: onboarding_smoke
+    seed_url: https://www.nhatot.com/mua-ban-can-ho-chung-cu-quan-thanh-xuan-ha-noi?page=2
+
+  - business_type: sale
+    category: mua-ban-nha-dat
+    category_label: Nha dat
+    property_type_group: house
+    city_slug: ha-noi
+    city_label: Ha Noi
+    location_slug: quan-thanh-xuan
+    location_path: quan-thanh-xuan-ha-noi
+    location_label: Thanh Xuan
+    location_level: district
+    priority_group: onboarding_smoke
+    seed_url: https://www.nhatot.com/mua-ban-nha-dat-quan-thanh-xuan-ha-noi?page=4
+
+output:
+  bronze_base_path: data/bronze
+
+quality:
+  min_expected_records: 1
+  blocking_blocked_rate: 0.5
+  min_parse_success_rate: 0.9
+  max_missing_price_rate: 0.5
+  max_missing_area_rate: 0.5
+  max_missing_location_rate: 0.5
+  max_duplicate_rate: 0.5
+  max_quarantine_rate: 0.5

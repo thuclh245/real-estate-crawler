@@ -18,7 +18,7 @@
       "source_domain": "nhatot.com",
       "current_config_paths": [],
       "target_v2_config_pattern": "configs/sources/<source_code>.yaml",
-      "active_target_v2_config": null
+      "active_target_v2_config": "configs/sources/nhatot.yaml"
     }
   ],
   "tables": [
