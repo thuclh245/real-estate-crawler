@@ -23,7 +23,7 @@ class SourcePromotionGateTest(unittest.TestCase):
             "source_code": "nhatot",
             "crawl_date": "2026-05-26",
             "crawl_id": "nhatot_20260526_010000",
-            "total_records": 1,
+            "total_records": 800,
             "parse_success_rate": 1.0,
             "blocked_rate": 0.0,
             "gate_status": "pass",
@@ -46,11 +46,7 @@ class SourcePromotionGateTest(unittest.TestCase):
         self.assertFalse(decision.passed)
         self.assertEqual(decision.status, "blocked")
         self.assertIn(
-            "legal_access_review.terms_reviewed is not true",
-            decision.block_reasons,
-        )
-        self.assertIn(
-            "legal_access_review.robots_checked is not true",
+            "legal_access_review.personal_contact_handling_documented is not true",
             decision.block_reasons,
         )
 

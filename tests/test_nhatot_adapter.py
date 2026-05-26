@@ -7,12 +7,13 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from crawler.sources.nhatot import NhatotAdapter
-from crawler.sources.nhatot.adapter import extract_ads_from_state, extract_next_state
+from crawler.sources.nhatot.adapter import IN_MEMORY_AD_CACHE, extract_ads_from_state, extract_next_state
 
 
 class NhatotAdapterTest(unittest.TestCase):
     def setUp(self):
         self.adapter = NhatotAdapter()
+        IN_MEMORY_AD_CACHE.clear()
 
     def test_source_code_is_stable(self):
         self.assertEqual(self.adapter.source_code, "nhatot")
@@ -62,6 +63,29 @@ class NhatotAdapterTest(unittest.TestCase):
             ],
         )
 
+    def test_build_seed_urls_uses_api_endpoint_when_category_and_location_slug_are_mapped(self):
+        config = {
+            "base_url": "https://www.nhatot.com",
+            "crawl_settings": {"max_pages_per_target": 2},
+            "targets": [
+                {
+                    "category": "mua-ban-can-ho-chung-cu",
+                    "location_slug": "quan-ba-dinh",
+                    "location_path": "quan-ba-dinh-ha-noi",
+                }
+            ],
+        }
+
+        urls = self.adapter.build_seed_urls(config)
+
+        self.assertEqual(
+            urls,
+            [
+                "https://gateway.chotot.com/v1/public/ad-listing?cg=1010&region=12&area=74&page=1&limit=20&st=s",
+                "https://gateway.chotot.com/v1/public/ad-listing?cg=1010&region=12&area=74&page=2&limit=20&st=s",
+            ],
+        )
+
     def test_extract_next_state_and_ads_support_initial_state_path(self):
         fixture = ROOT / "tests" / "fixtures" / "nhatot" / "list_page_sample.html"
         html = fixture.read_text(encoding="utf-8")
@@ -105,6 +129,54 @@ class NhatotAdapterTest(unittest.TestCase):
         self.assertIsNone(second["listing_card_price_raw"])
         self.assertIsNone(second["listing_card_area_raw"])
         self.assertEqual(second["listing_card_location_raw"], "Dong Da, Ha Noi")
+
+    def test_parse_api_list_page_maps_json_to_adapter_contract_and_skips_missing_identity(self):
+        fixture = ROOT / "tests" / "fixtures" / "nhatot" / "api_list_page_sample.json"
+        payload = fixture.read_text(encoding="utf-8")
+
+        entries = self.adapter.parse_list_page(payload)
+
+        self.assertEqual(len(entries), 2)
+        first = entries[0]
+        self.assertEqual(first["source"], "nhatot")
+        self.assertEqual(first["source_code"], "nhatot")
+        self.assertEqual(first["listing_id"], "333")
+        self.assertEqual(
+            first["listing_url"],
+            "https://www.nhatot.com/mua-ban-can-ho-chung-cu-quan-ba-dinh-ha-noi/333.htm",
+        )
+        self.assertEqual(first["listing_card_title"], "Can ho API Ba Dinh")
+        self.assertEqual(first["listing_card_price_raw"], "4,5 ty")
+        self.assertEqual(first["listing_card_area_raw"], "72 m2")
+        self.assertEqual(first["listing_card_location_raw"], "Doi Can, Ba Dinh, Ha Noi")
+        self.assertEqual(first["listing_card_description"], "Can ho API gan trung tam")
+        self.assertEqual(first["property_type_group"], "apartment")
+        self.assertEqual(first["city_raw"], "Ha Noi")
+        self.assertEqual(first["district_raw"], "Ba Dinh")
+        self.assertEqual(first["ward_raw"], "Doi Can")
+        self.assertEqual(first["bedroom_count"], 2)
+        self.assertEqual(first["bathroom_count"], 2)
+        self.assertEqual(first["price_vnd"], 4500000000)
+        self.assertEqual(first["area_m2"], 72)
+
+        second = entries[1]
+        self.assertEqual(second["listing_id"], "444")
+        self.assertIsNone(second["listing_card_price_raw"])
+        self.assertIsNone(second["listing_card_area_raw"])
+        self.assertEqual(second["listing_card_location_raw"], "Dong Da, Ha Noi")
+
+    def test_parse_api_list_page_caches_raw_ad_for_detail_parse(self):
+        fixture = ROOT / "tests" / "fixtures" / "nhatot" / "api_list_page_sample.json"
+
+        entries = self.adapter.parse_list_page(fixture.read_text(encoding="utf-8"))
+        cached_json = IN_MEMORY_AD_CACHE[entries[0]["listing_url"]]
+        detail = self.adapter.parse_detail_page(cached_json)
+
+        self.assertEqual(detail["detail_title"], "Can ho API Ba Dinh")
+        self.assertEqual(detail["detail_address_raw"], "Duong Doi Can, Doi Can, Ba Dinh, Ha Noi")
+        self.assertEqual(detail["breadcrumb_raw"], "Ha Noi / Ba Dinh / Doi Can")
+        self.assertEqual(detail["breadcrumb_location_raw"], "Ha Noi / Ba Dinh / Doi Can")
+        self.assertEqual(detail["detail_description"], "Can ho API gan trung tam")
 
     def test_parse_list_page_handles_empty_and_invalid_pages(self):
         empty_fixture = ROOT / "tests" / "fixtures" / "nhatot" / "list_page_empty.html"

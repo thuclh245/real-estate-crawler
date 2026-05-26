@@ -1,0 +1,35 @@
+{
+  "ads": [
+    {
+      "ad_id": 333,
+      "category_slug": "mua-ban-can-ho-chung-cu",
+      "location_slug": "quan-ba-dinh-ha-noi",
+      "subject": "Can ho API Ba Dinh",
+      "price_string": "4,5 ty",
+      "price": 4500000000,
+      "size": 72,
+      "region_name": "Ha Noi",
+      "area_name": "Ba Dinh",
+      "ward_name": "Doi Can",
+      "street_name": "Duong Doi Can",
+      "body": "Can ho API gan trung tam",
+      "property_type_group": "apartment",
+      "rooms": 2,
+      "toilets": 2
+    },
+    {
+      "list_id": 444,
+      "category_slug": "mua-ban-nha-dat",
+      "location_slug": "quan-dong-da-ha-noi",
+      "subject": "Nha API Dong Da",
+      "region_name": "Ha Noi",
+      "area_name": "Dong Da",
+      "body": "Nha API thieu gia va dien tich"
+    },
+    {
+      "category_slug": "mua-ban-nha-dat",
+      "location_slug": "quan-cau-giay-ha-noi",
+      "subject": "Tin thieu identity"
+    }
+  ]
+}

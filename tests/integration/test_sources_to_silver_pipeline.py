@@ -107,6 +107,7 @@ class SourcesToSilverPipelineTest(unittest.TestCase):
         )
         config["crawl"]["request_delay_seconds"] = 0
         config["crawl"]["max_listings_per_target"] = 1
+        config["quality"]["min_expected_records"] = 1
         config["targets"] = [
             target
             for target in config["targets"]
@@ -247,6 +248,41 @@ class SourcesToSilverPipelineTest(unittest.TestCase):
         self.assertEqual(
             run["source_scorecard"]["halt_reason"],
             "blocked:cloudflare_turnstile",
+        )
+
+    def test_nhatot_fetch_error_halts_remaining_targets(self):
+        config_path = self._write_blocked_nhatot_config()
+        config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+        second_target = dict(config["targets"][0])
+        second_target["location_slug"] = "quan-cau-giay"
+        second_target["location_path"] = "quan-cau-giay-ha-noi"
+        second_target["location_label"] = "Cau Giay"
+        second_target["seed_url"] = (
+            "https://www.nhatot.com/mua-ban-nha-dat-quan-cau-giay-ha-noi?page=4"
+        )
+        config["targets"] = [config["targets"][0], second_target]
+        config_path.write_text(
+            yaml.safe_dump(config, allow_unicode=True, sort_keys=False),
+            encoding="utf-8",
+        )
+        calls = []
+
+        def broken_fetch(url: str, mode: str, max_retries: int, retry_delay_seconds: float):
+            calls.append(url)
+            return None, "", url, 0, "unable to open database file"
+
+        summary = run_sources_to_silver(
+            config_paths=[config_path],
+            base_dir=self.base_dir,
+            fetch_with_retry_fn=broken_fetch,
+        )
+
+        run = summary["runs"][0]
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(run["source_scorecard"]["failed_count"], 1)
+        self.assertEqual(
+            run["source_scorecard"]["halt_reason"],
+            "fetch_error:failed_fetch",
         )
 
 

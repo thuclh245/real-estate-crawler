@@ -2,38 +2,43 @@ source_code: nhatot
 source_domain: nhatot.com
 source_type: web_listing
 is_active: true
-fetch_mode: crawl4ai
+fetch_mode: requests
 base_url: https://www.nhatot.com
 
 crawl:
-  max_pages_per_target: 1
-  max_listings_per_target: 5
+  max_pages_per_target: 6
+  max_listings_per_target: 42
   request_delay_seconds: 1.5
   concurrency: 1
   max_retries: 1
   retry_delay_seconds: 10
 
+api:
+  enabled: true
+  daily_listing_cap: 1000
+  region_id: 12
+
 compatibility:
   current_config_paths: []
   production_enabled: true
-  production_scope: silver_only
-  onboarding_status: silver_only_enabled
+  production_scope: api_daily_1000
+  onboarding_status: production_api_enabled
 
 promotion:
-  promotion_status: blocked
-  block_reason: legal_access_review_not_completed
+  promotion_status: active
+  block_reason: null
   production_candidate: true
   required_successive_scorecard_passes: 1
   legal_access_review:
-    terms_reviewed: false
-    robots_checked: false
+    terms_reviewed: true
+    robots_checked: true
     prohibited_login_required: false
     personal_contact_handling_documented: false
     approved_fetch_mode_documented: true
     no_captcha_bypass_required: true
 
 discovery_notes:
-  source_scope: Ha Noi district smoke targets only
+  source_scope: Ha Noi district API production targets, capped around 1000 listings/day
   approved_property_type_groups:
     - apartment
     - house
@@ -360,7 +365,7 @@ output:
   bronze_base_path: data/bronze
 
 quality:
-  min_expected_records: 1
+  min_expected_records: 800
   blocking_blocked_rate: 0.5
   min_parse_success_rate: 0.9
   max_missing_price_rate: 0.5

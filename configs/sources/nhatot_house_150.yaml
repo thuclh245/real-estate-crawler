@@ -2,7 +2,7 @@ source_code: nhatot
 source_domain: nhatot.com
 source_type: web_listing
 is_active: true
-fetch_mode: crawl4ai
+fetch_mode: requests
 base_url: https://www.nhatot.com
 
 crawl:
@@ -15,15 +15,15 @@ crawl:
 
 compatibility:
   current_config_paths: []
-  production_enabled: true
-  production_scope: silver_only
-  onboarding_status: production_house_150
+  production_enabled: false
+  production_scope: deprecated_replaced_by_configs_sources_nhatot_yaml
+  onboarding_status: deprecated
   failure_policy: continue_without_silver
 
 promotion:
   promotion_status: blocked
-  block_reason: legal_access_review_not_completed
-  production_candidate: true
+  block_reason: deprecated_replaced_by_api_config
+  production_candidate: false
   required_successive_scorecard_passes: 1
   legal_access_review:
     terms_reviewed: false

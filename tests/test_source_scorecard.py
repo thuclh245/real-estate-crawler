@@ -96,6 +96,28 @@ class SourceScorecardTest(unittest.TestCase):
         self.assertEqual(scorecard["gate_status"], "fail")
         self.assertTrue(scorecard["gate_failures"])
 
+    def test_blocked_rate_uses_listing_pages_when_no_detail_pages_requested(self):
+        scorecard = build_source_scorecard(
+            crawl_summary={
+                "source": "nhatot",
+                "crawl_date": "2026-05-26",
+                "crawl_id": "crawl-blocked",
+                "total_detail_pages_requested": 0,
+                "total_listing_pages_requested": 1,
+                "success_count": 0,
+                "failed_count": 1,
+                "blocked_count": 1,
+                "block_reasons": {"cloudflare_turnstile": 1},
+                "halt_reason": "blocked:cloudflare_turnstile",
+            },
+            silver_quality_summary={},
+            quality_config=self.quality_config,
+        )
+
+        self.assertEqual(scorecard["blocked_rate"], 1.0)
+        self.assertEqual(scorecard["block_reasons"], {"cloudflare_turnstile": 1})
+        self.assertEqual(scorecard["halt_reason"], "blocked:cloudflare_turnstile")
+
     def test_write_source_scorecard_writes_expected_json_artifact(self):
         scorecard = build_source_scorecard(
             crawl_summary={

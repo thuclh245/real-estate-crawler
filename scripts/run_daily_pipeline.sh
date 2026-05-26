@@ -3,7 +3,7 @@ set -euo pipefail
 
 PROJECT_DIR="${PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 BUCKET="${GCS_BUCKET:-gs://bigdata-subject-real-estate-lakehouse}"
-CRAWL_CONFIGS="${CRAWL_CONFIGS:-configs/team/batdongsan_house_150.yaml,configs/sources/nhatot_house_150.yaml}"
+CRAWL_CONFIGS="${CRAWL_CONFIGS:-configs/team/batdongsan_house_150.yaml,configs/sources/nhatot.yaml}"
 CRAWL_DATE="${CRAWL_DATE:-$(date +%Y-%m-%d)}"
 PIPELINE_MODE="${PIPELINE_MODE:-full}"
 SYNC_TO_GCS="${SYNC_TO_GCS:-true}"

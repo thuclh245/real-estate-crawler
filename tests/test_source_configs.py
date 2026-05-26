@@ -43,32 +43,34 @@ class SourceConfigsTest(unittest.TestCase):
         self.assertEqual(config["source_domain"], "nhatot.com")
         self.assertEqual(config["source_type"], "web_listing")
         self.assertIs(config["is_active"], True)
-        self.assertEqual(config["fetch_mode"], "crawl4ai")
+        self.assertEqual(config["fetch_mode"], "requests")
 
         crawl = config["crawl"]
-        self.assertEqual(crawl["max_pages_per_target"], 1)
-        self.assertEqual(crawl["max_listings_per_target"], 5)
+        self.assertEqual(crawl["max_pages_per_target"], 6)
+        self.assertEqual(crawl["max_listings_per_target"], 42)
         self.assertGreaterEqual(float(crawl["request_delay_seconds"]), 1.5)
         self.assertEqual(crawl["concurrency"], 1)
         self.assertEqual(crawl["max_retries"], 1)
         self.assertEqual(crawl["retry_delay_seconds"], 10)
 
+        api = config["api"]
+        self.assertIs(api["enabled"], True)
+        self.assertEqual(api["daily_listing_cap"], 1000)
+        self.assertEqual(api["region_id"], 12)
+
         compatibility = config["compatibility"]
         self.assertEqual(compatibility["current_config_paths"], [])
         self.assertIs(compatibility["production_enabled"], True)
-        self.assertEqual(compatibility["production_scope"], "silver_only")
-        self.assertEqual(compatibility["onboarding_status"], "silver_only_enabled")
+        self.assertEqual(compatibility["production_scope"], "api_daily_1000")
+        self.assertEqual(compatibility["onboarding_status"], "production_api_enabled")
 
         promotion = config["promotion"]
-        self.assertEqual(promotion["promotion_status"], "blocked")
-        self.assertEqual(
-            promotion["block_reason"],
-            "legal_access_review_not_completed",
-        )
+        self.assertEqual(promotion["promotion_status"], "active")
+        self.assertIsNone(promotion["block_reason"])
         self.assertIs(promotion["production_candidate"], True)
         legal_access_review = promotion["legal_access_review"]
-        self.assertIs(legal_access_review["terms_reviewed"], False)
-        self.assertIs(legal_access_review["robots_checked"], False)
+        self.assertIs(legal_access_review["terms_reviewed"], True)
+        self.assertIs(legal_access_review["robots_checked"], True)
         self.assertIs(legal_access_review["prohibited_login_required"], False)
         self.assertIs(
             legal_access_review["personal_contact_handling_documented"],
@@ -78,7 +80,7 @@ class SourceConfigsTest(unittest.TestCase):
         self.assertIs(legal_access_review["no_captcha_bypass_required"], True)
 
         self.assertEqual(config["output"]["bronze_base_path"], "data/bronze")
-        self.assertEqual(config["quality"]["min_expected_records"], 1)
+        self.assertEqual(config["quality"]["min_expected_records"], 800)
         self.assertEqual(config["quality"]["blocking_blocked_rate"], 0.5)
         self.assertEqual(config["quality"]["min_parse_success_rate"], 0.9)
         self.assertEqual(config["quality"]["max_missing_price_rate"], 0.5)
@@ -157,36 +159,67 @@ class SourceConfigsTest(unittest.TestCase):
         self.assertEqual(payload["overall"], "pass")
         self.assertTrue(output_path.exists())
 
-    def test_production_house_150_configs_are_source_aware(self):
+    def test_production_configs_use_nhatot_api_and_deprecate_old_nhatot_house_config(self):
         batdongsan_path = ROOT / "configs" / "team" / "batdongsan_house_150.yaml"
-        nhatot_path = ROOT / "configs" / "sources" / "nhatot_house_150.yaml"
+        nhatot_path = ROOT / "configs" / "sources" / "nhatot.yaml"
+        deprecated_nhatot_path = ROOT / "configs" / "sources" / "nhatot_house_150.yaml"
         self.assertTrue(batdongsan_path.exists())
         self.assertTrue(nhatot_path.exists())
+        self.assertTrue(deprecated_nhatot_path.exists())
 
         batdongsan = yaml.safe_load(batdongsan_path.read_text(encoding="utf-8"))
         self.assertEqual(batdongsan["source"], "batdongsan")
         self.assertEqual(batdongsan["source_domain"], "batdongsan.com.vn")
         self.assertEqual(
+            batdongsan["crawl_settings"]["member_id"],
+            "batdongsan_house_1000",
+        )
+        self.assertEqual(
+            batdongsan["crawl_settings"]["max_pages_per_target"],
+            7,
+        )
+        self.assertEqual(
             batdongsan["crawl_settings"]["max_listings_per_target"],
-            13,
+            84,
         )
         self.assertEqual(len(batdongsan["locations"]), 12)
         self.assertEqual(
             {category["property_type_group"] for category in batdongsan["categories"]},
             {"house"},
         )
-        self.assertEqual(batdongsan["quality"]["min_expected_records"], 100)
+        self.assertEqual(
+            len(batdongsan["locations"])
+            * len(batdongsan["categories"])
+            * batdongsan["crawl_settings"]["max_listings_per_target"],
+            1008,
+        )
+        self.assertEqual(batdongsan["quality"]["min_expected_records"], 800)
 
         nhatot = yaml.safe_load(nhatot_path.read_text(encoding="utf-8"))
         self.assertEqual(nhatot["source_code"], "nhatot")
         self.assertEqual(nhatot["source_domain"], "nhatot.com")
-        self.assertEqual(nhatot["crawl"]["max_listings_per_target"], 13)
-        self.assertEqual(len(nhatot["targets"]), 12)
+        self.assertEqual(nhatot["fetch_mode"], "requests")
+        self.assertIs(nhatot["api"]["enabled"], True)
+        self.assertEqual(nhatot["api"]["daily_listing_cap"], 1000)
+        self.assertEqual(nhatot["crawl"]["max_pages_per_target"], 6)
+        self.assertEqual(nhatot["crawl"]["max_listings_per_target"], 42)
+        self.assertEqual(len(nhatot["targets"]), 24)
         self.assertEqual(
             {target["property_type_group"] for target in nhatot["targets"]},
-            {"house"},
+            {"apartment", "house"},
         )
-        self.assertEqual(nhatot["quality"]["min_expected_records"], 100)
+        self.assertEqual(
+            len(nhatot["targets"]) * nhatot["crawl"]["max_listings_per_target"],
+            1008,
+        )
+        self.assertEqual(nhatot["quality"]["min_expected_records"], 800)
+
+        deprecated_nhatot = yaml.safe_load(
+            deprecated_nhatot_path.read_text(encoding="utf-8")
+        )
+        self.assertIs(deprecated_nhatot["compatibility"]["production_enabled"], False)
+        self.assertEqual(deprecated_nhatot["promotion"]["promotion_status"], "blocked")
+        self.assertIs(deprecated_nhatot["promotion"]["production_candidate"], False)
 
         exit_code, payload, _ = run_preflight(
             run_id="preflight_house_150_configs",

@@ -53,7 +53,7 @@ def build_source_scorecard(
         ("blocked_count", "http_403_count", "http_429_count"),
         default=0,
     )
-    requested_count = _first_int(
+    requested_count = _first_positive_int(
         crawl_summary,
         (
             "total_detail_pages_requested",
@@ -172,6 +172,20 @@ def _first_float(
     for key in keys:
         if key in payload and payload[key] not in (None, ""):
             return _safe_float(payload[key])
+    return default
+
+
+def _first_positive_int(
+    payload: dict[str, Any],
+    keys: tuple[str, ...],
+    *,
+    default: int = 0,
+) -> int:
+    for key in keys:
+        if key in payload and payload[key] not in (None, ""):
+            value = _safe_int(payload[key])
+            if value > 0:
+                return value
     return default
 
 

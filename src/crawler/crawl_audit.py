@@ -31,6 +31,11 @@ def validate_seed_url(seed_url: str, final_url: str, location_path: str) -> bool
         return False
 
     final_url_clean = final_url.rstrip("/")
+    if "gateway.chotot.com/v1/public/ad-listing" in seed_url and (
+        "gateway.chotot.com/v1/public/ad-listing" in final_url_clean
+    ):
+        return True
+
     if location_path not in final_url_clean:
         return False
 
@@ -55,6 +60,8 @@ def check_location_match(raw_text: str, expected_label: str | None, expected_slu
 
 
 CATEGORY_KEYWORDS = {
+    "mua-ban-can-ho-chung-cu": ["căn hộ", "chung cư", "can ho", "chung cu"],
+    "mua-ban-nha-dat": ["nhà", "nhà đất", "nha", "nha dat", "đất", "dat"],
     "ban-can-ho-chung-cu": ["căn hộ", "chung cư", "can ho", "chung cu"],
     "ban-nha-rieng": ["nhà riêng", "nha rieng"],
     "ban-dat": ["đất", "dat"],

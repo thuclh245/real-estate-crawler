@@ -160,7 +160,8 @@ class ProductionFoundationTest(unittest.TestCase):
         ]:
             script_text = script_path.read_text(encoding="utf-8")
             self.assertIn("configs/team/batdongsan_house_150.yaml", script_text)
-            self.assertIn("configs/sources/nhatot_house_150.yaml", script_text)
+            self.assertIn("configs/sources/nhatot.yaml", script_text)
+            self.assertNotIn("configs/sources/nhatot_house_150.yaml", script_text)
             self.assertIn("pipeline.sources_to_silver", script_text, script_path)
             self.assertIn("source_names=", script_text, script_path)
             self.assertNotIn("source=batdongsan/crawl_date", script_text, script_path)

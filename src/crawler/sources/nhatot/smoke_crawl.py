@@ -62,6 +62,7 @@ def build_smoke_crawl_config(source_config: dict) -> dict:
             "request_delay_seconds": float(crawl.get("request_delay_seconds", 1.5)),
             "concurrency": int(crawl.get("concurrency", 1)),
             "stop_on_block": True,
+            "stop_on_fetch_error": True,
             "max_retries": int(crawl.get("max_retries", 1)),
             "retry_delay_seconds": float(crawl.get("retry_delay_seconds", 10)),
             "crawler_version": "nhatot_smoke_v0.1",

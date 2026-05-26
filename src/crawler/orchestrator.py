@@ -101,6 +101,7 @@ class CrawlOrchestrator:
         delay = settings.get("request_delay_seconds", 2)
         fetch_mode = str(settings.get("fetch_mode", "requests"))
         stop_on_block = bool(settings.get("stop_on_block", True))
+        stop_on_fetch_error = bool(settings.get("stop_on_fetch_error", False))
         crawler_version = settings.get("crawler_version", "v0.1")
         parser_version = settings.get("parser_version", "v0.1")
         max_retries = int(settings.get("max_retries", 1))
@@ -483,6 +484,12 @@ class CrawlOrchestrator:
                             "scraped_at": now_utc_iso(),
                         },
                     )
+                    if stop_on_fetch_error:
+                        summary["halt_reason"] = (
+                            f"fetch_error:{classify_failure_status(None, str(e))}"
+                        )
+                        halt_crawl = True
+                        break
 
             deduped_entries_by_url = {}
             for entry in target_listing_entries:

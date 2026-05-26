@@ -10,7 +10,7 @@ $ProjectDir = if ($env:PROJECT_DIR) { $env:PROJECT_DIR } else { (Resolve-Path (J
 $PythonExe = Join-Path $ProjectDir ".venv\Scripts\python.exe"
 if (-not (Test-Path $PythonExe)) { $PythonExe = "python" }
 $Bucket = if ($env:GCS_BUCKET) { $env:GCS_BUCKET } else { "gs://bigdata-subject-real-estate-lakehouse" }
-$CrawlConfigsRaw = if ($env:CRAWL_CONFIGS) { $env:CRAWL_CONFIGS } else { "configs/team/batdongsan_house_150.yaml,configs/sources/nhatot_house_150.yaml" }
+$CrawlConfigsRaw = if ($env:CRAWL_CONFIGS) { $env:CRAWL_CONFIGS } else { "configs/team/batdongsan_house_150.yaml,configs/sources/nhatot.yaml" }
 $CrawlDate = if ($env:CRAWL_DATE) { $env:CRAWL_DATE } else { Get-Date -Format "yyyy-MM-dd" }
 $SyncToGcs = if ($env:SYNC_TO_GCS) { $env:SYNC_TO_GCS } else { "true" }
 

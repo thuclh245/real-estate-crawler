@@ -31,6 +31,52 @@ def fetch_with_retry(
     max_retries: int,
     retry_delay_seconds: float,
 ) -> tuple[int | None, str, str | None, int, str | None]:
+    # 1. Intercept cache for Nhatot detail pages to completely bypass detail network calls
+    try:
+        from crawler.sources.nhatot.adapter import IN_MEMORY_AD_CACHE
+        if url in IN_MEMORY_AD_CACHE:
+            return 200, IN_MEMORY_AD_CACHE[url], url, 0, None
+    except ImportError:
+        pass
+
+    # 2. Intercept Nhatot web seed listing pages and translate them to API endpoints on the fly
+    if "nhatot.com" in url and "detail-mock" not in url and ".htm" not in url:
+        try:
+            from crawler.sources.nhatot.adapter import DISTRICT_MAPPING, CATEGORY_MAPPING
+            page = 1
+            if "page=" in url:
+                try:
+                    page = int(url.split("page=")[-1].split("&")[0])
+                except:
+                    pass
+            elif "/p" in url:
+                try:
+                    page = int(url.split("/p")[-1].split("?")[0])
+                except:
+                    pass
+
+            cg_id = 1000
+            for cat, cid in CATEGORY_MAPPING.items():
+                if cat in url:
+                    cg_id = cid
+                    break
+
+            area_id = None
+            for dist, aid in DISTRICT_MAPPING.items():
+                if dist in url:
+                    area_id = aid
+                    break
+
+            if area_id:
+                transaction_query = "&st=s" if "mua-ban" in url else ""
+                api_url = f"https://gateway.chotot.com/v1/public/ad-listing?cg={cg_id}&region=12&area={area_id}&page={page}&limit=20{transaction_query}"
+                # Fetch API JSON, but return the original web URL as final_url for orchestrator compatibility
+                status, html, _ = fetch_html(api_url, mode=mode)
+                return status, html, url, 0, None
+        except Exception as e:
+            print(f"[fetcher] Error translating Nhatot web URL to API: {e}")
+            pass
+
     last_status = None
     last_html = ""
     last_final_url = url
@@ -67,6 +113,14 @@ def fetch_html_requests(url: str) -> tuple[int, str, str]:
         "Pragma": "no-cache",
         "Upgrade-Insecure-Requests": "1",
     }
+    
+    # Inject high-performance mobile headers for Chotot/Nhatot gateway API compatibility
+    if "chotot.com" in url or "nhatot.com" in url:
+        headers["User-Agent"] = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Chotot/4.5.0"
+        headers["X-Chotot-Platform"] = "IOS"
+        headers["X-Chotot-Region"] = "VN"
+        headers["Accept"] = "application/json, text/plain, */*"
+
     response = requests.get(url, headers=headers, timeout=30, allow_redirects=True)
     return response.status_code, response.text, response.url
 

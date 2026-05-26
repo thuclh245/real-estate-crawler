@@ -3,21 +3,21 @@ source_domain: batdongsan.com.vn
 base_url: https://batdongsan.com.vn
 
 crawl_settings:
-  member_id: batdongsan_house_150
+  member_id: batdongsan_house_1000
   fetch_mode: crawl4ai
   stop_on_block: true
   save_images: false
   request_delay_seconds: 12
   concurrency: 1
-  max_pages_per_target: 1
-  max_listings_per_target: 13
+  max_pages_per_target: 7
+  max_listings_per_target: 84
   max_retries: 3
   retry_delay_seconds: 45
   crawler_version: v0.1
   parser_version: v0.1
 
 quality:
-  min_expected_records: 100
+  min_expected_records: 800
 
 categories:
   - slug: ban-nha-rieng
@@ -32,7 +32,7 @@ locations:
     location_path: phuong-ba-dinh-tp-ha-noi
     location_label: Ba Dinh
     location_level: ward_or_area
-    priority_group: production_house_150
+    priority_group: production_house_1000
 
   - city_slug: tp-ha-noi
     city_label: Ha Noi
@@ -40,7 +40,7 @@ locations:
     location_path: phuong-bac-tu-liem-tp-ha-noi
     location_label: Bac Tu Liem
     location_level: ward_or_area
-    priority_group: production_house_150
+    priority_group: production_house_1000
 
   - city_slug: tp-ha-noi
     city_label: Ha Noi
@@ -48,7 +48,7 @@ locations:
     location_path: phuong-cau-giay-tp-ha-noi
     location_label: Cau Giay
     location_level: ward_or_area
-    priority_group: production_house_150
+    priority_group: production_house_1000
 
   - city_slug: tp-ha-noi
     city_label: Ha Noi
@@ -56,7 +56,7 @@ locations:
     location_path: phuong-dong-da-tp-ha-noi
     location_label: Dong Da
     location_level: ward_or_area
-    priority_group: production_house_150
+    priority_group: production_house_1000
 
   - city_slug: tp-ha-noi
     city_label: Ha Noi
@@ -64,7 +64,7 @@ locations:
     location_path: phuong-ha-dong-tp-ha-noi
     location_label: Ha Dong
     location_level: ward_or_area
-    priority_group: production_house_150
+    priority_group: production_house_1000
 
   - city_slug: tp-ha-noi
     city_label: Ha Noi
@@ -72,7 +72,7 @@ locations:
     location_path: phuong-hai-ba-trung-tp-ha-noi
     location_label: Hai Ba Trung
     location_level: ward_or_area
-    priority_group: production_house_150
+    priority_group: production_house_1000
 
   - city_slug: tp-ha-noi
     city_label: Ha Noi
@@ -80,7 +80,7 @@ locations:
     location_path: phuong-hoan-kiem-tp-ha-noi
     location_label: Hoan Kiem
     location_level: ward_or_area
-    priority_group: production_house_150
+    priority_group: production_house_1000
 
   - city_slug: tp-ha-noi
     city_label: Ha Noi
@@ -88,7 +88,7 @@ locations:
     location_path: phuong-hoang-mai-tp-ha-noi
     location_label: Hoang Mai
     location_level: ward_or_area
-    priority_group: production_house_150
+    priority_group: production_house_1000
 
   - city_slug: tp-ha-noi
     city_label: Ha Noi
@@ -96,7 +96,7 @@ locations:
     location_path: phuong-long-bien-tp-ha-noi
     location_label: Long Bien
     location_level: ward_or_area
-    priority_group: production_house_150
+    priority_group: production_house_1000
 
   - city_slug: tp-ha-noi
     city_label: Ha Noi
@@ -104,7 +104,7 @@ locations:
     location_path: phuong-nam-tu-liem-tp-ha-noi
     location_label: Nam Tu Liem
     location_level: ward_or_area
-    priority_group: production_house_150
+    priority_group: production_house_1000
 
   - city_slug: tp-ha-noi
     city_label: Ha Noi
@@ -112,7 +112,7 @@ locations:
     location_path: phuong-tay-ho-tp-ha-noi
     location_label: Tay Ho
     location_level: ward_or_area
-    priority_group: production_house_150
+    priority_group: production_house_1000
 
   - city_slug: tp-ha-noi
     city_label: Ha Noi
@@ -120,4 +120,4 @@ locations:
     location_path: phuong-thanh-xuan-tp-ha-noi
     location_label: Thanh Xuan
     location_level: ward_or_area
-    priority_group: production_house_150
+    priority_group: production_house_1000

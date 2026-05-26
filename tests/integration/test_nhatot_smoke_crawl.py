@@ -18,6 +18,7 @@ from crawler.sources.nhatot.smoke_crawl import (
     load_source_config,
     run_nhatot_smoke_crawl,
 )
+from crawler.sources.nhatot.adapter import IN_MEMORY_AD_CACHE
 from observability import (
     build_source_scorecard,
     load_silver_quality_summary,
@@ -32,6 +33,9 @@ LIST_PAGE_HTML = (ROOT / "tests" / "fixtures" / "nhatot" / "list_page_sample.htm
 DETAIL_PAGE_HTML = (
     ROOT / "tests" / "fixtures" / "nhatot" / "detail_page_sample.html"
 ).read_text(encoding="utf-8")
+API_LIST_PAGE_JSON = (
+    ROOT / "tests" / "fixtures" / "nhatot" / "api_list_page_sample.json"
+).read_text(encoding="utf-8")
 
 
 def fake_fetch_with_retry(url: str, mode: str, max_retries: int, retry_delay_seconds: float):
@@ -40,9 +44,20 @@ def fake_fetch_with_retry(url: str, mode: str, max_retries: int, retry_delay_sec
     return 200, LIST_PAGE_HTML, url, 0, None
 
 
+def fake_api_fetch_with_retry(url: str, mode: str, max_retries: int, retry_delay_seconds: float):
+    if url in IN_MEMORY_AD_CACHE:
+        return 200, IN_MEMORY_AD_CACHE[url], url, 0, None
+    if "gateway.chotot.com" in url:
+        return 200, API_LIST_PAGE_JSON, url, 0, None
+    if "nhatot.com" in url and ".htm" not in url:
+        return 200, API_LIST_PAGE_JSON, url, 0, None
+    return 404, "", url, 0, "fixture URL not found"
+
+
 class NhatotSmokeCrawlTest(unittest.TestCase):
     def setUp(self):
         self.base_dir = ROOT / "tests" / "tmp_runtime" / "nhatot_smoke" / uuid4().hex
+        IN_MEMORY_AD_CACHE.clear()
 
     def tearDown(self):
         shutil.rmtree(self.base_dir, ignore_errors=True)
@@ -51,6 +66,7 @@ class NhatotSmokeCrawlTest(unittest.TestCase):
         source_config = load_source_config(ROOT / "configs" / "sources" / "nhatot.yaml")
         source_config["crawl"]["request_delay_seconds"] = 0
         source_config["crawl"]["max_listings_per_target"] = 1
+        source_config["quality"]["min_expected_records"] = 1
         source_config["targets"] = [
             target
             for target in source_config["targets"]
@@ -66,6 +82,26 @@ class NhatotSmokeCrawlTest(unittest.TestCase):
         )
         return config_path
 
+    def _write_api_smoke_config(self) -> Path:
+        source_config = load_source_config(ROOT / "configs" / "sources" / "nhatot.yaml")
+        source_config["crawl"]["request_delay_seconds"] = 0
+        source_config["crawl"]["max_listings_per_target"] = 1
+        source_config["quality"]["min_expected_records"] = 1
+        source_config["targets"] = [
+            target
+            for target in source_config["targets"]
+            if target["property_type_group"] == "apartment"
+            and target["location_path"] == "quan-ba-dinh-ha-noi"
+        ][:1]
+
+        config_path = self.base_dir / "configs" / "nhatot_api_smoke.yaml"
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        config_path.write_text(
+            yaml.safe_dump(source_config, allow_unicode=True, sort_keys=False),
+            encoding="utf-8",
+        )
+        return config_path
+
     def test_build_smoke_crawl_config_maps_source_config_to_orchestrator_config(self):
         source_config = load_source_config(ROOT / "configs" / "sources" / "nhatot.yaml")
         crawl_config = build_smoke_crawl_config(source_config)
@@ -73,8 +109,9 @@ class NhatotSmokeCrawlTest(unittest.TestCase):
         self.assertEqual(crawl_config["source"], "nhatot")
         self.assertEqual(crawl_config["source_domain"], "nhatot.com")
         self.assertEqual(crawl_config["base_url"], "https://www.nhatot.com")
-        self.assertEqual(crawl_config["crawl_settings"]["fetch_mode"], "crawl4ai")
-        self.assertEqual(crawl_config["crawl_settings"]["max_pages_per_target"], 1)
+        self.assertEqual(crawl_config["crawl_settings"]["fetch_mode"], "requests")
+        self.assertEqual(crawl_config["crawl_settings"]["max_pages_per_target"], 6)
+        self.assertIs(crawl_config["crawl_settings"]["stop_on_fetch_error"], True)
         self.assertGreaterEqual(
             crawl_config["crawl_settings"]["request_delay_seconds"],
             1.5,
@@ -124,7 +161,7 @@ class NhatotSmokeCrawlTest(unittest.TestCase):
             metadata["listing_url"],
             "https://www.nhatot.com/mua-ban-can-ho-chung-cu-quan-cau-giay-ha-noi/111.htm",
         )
-        self.assertEqual(metadata["fetch_mode"], "crawl4ai")
+        self.assertEqual(metadata["fetch_mode"], "requests")
         self.assertEqual(metadata["crawl_status"], "ok")
         self.assertEqual(metadata["property_type_group"], "apartment")
         self.assertEqual(metadata["crawl_location_path"], "quan-cau-giay-ha-noi")
@@ -134,6 +171,49 @@ class NhatotSmokeCrawlTest(unittest.TestCase):
         self.assertTrue(Path(metadata["raw_text_path"]).exists())
         self.assertTrue(Path(metadata["raw_json_path"]).exists())
         self.assertTrue(Path(metadata["metadata_path"]).exists())
+
+    def test_nhatot_api_smoke_crawl_uses_json_listing_and_cached_detail(self):
+        config_path = self._write_api_smoke_config()
+
+        summary = run_nhatot_smoke_crawl(
+            config_path=config_path,
+            base_dir=self.base_dir,
+            fetch_with_retry_fn=fake_api_fetch_with_retry,
+        )
+
+        crawl_date = today_str()
+        crawl_id = summary["crawl_id"]
+        bronze_crawl_dir = (
+            self.base_dir
+            / "bronze"
+            / "source=nhatot"
+            / f"crawl_date={crawl_date}"
+            / f"crawl_id={crawl_id}"
+        )
+        metadata_files = list((bronze_crawl_dir / "metadata").glob("*.json"))
+        raw_text_files = list((bronze_crawl_dir / "raw_text").glob("*.txt"))
+
+        self.assertEqual(summary["success_count"], 1)
+        self.assertEqual(summary["metadata_file_count"], 1)
+        self.assertEqual(len(metadata_files), 1)
+        self.assertEqual(len(raw_text_files), 1)
+
+        metadata = json.loads(metadata_files[0].read_text(encoding="utf-8"))
+        self.assertEqual(metadata["source"], "nhatot")
+        self.assertEqual(metadata["listing_id"], "333")
+        self.assertEqual(metadata["listing_card_title"], "Can ho API Ba Dinh")
+        self.assertEqual(metadata["title"], "Can ho API Ba Dinh")
+        self.assertEqual(metadata["description"], "Can ho API gan trung tam")
+        self.assertEqual(metadata["detail_address_raw"], "Duong Doi Can, Doi Can, Ba Dinh, Ha Noi")
+        self.assertEqual(metadata["breadcrumb_raw"], "Ha Noi / Ba Dinh / Doi Can")
+        self.assertEqual(metadata["price_vnd"], 4500000000)
+        self.assertEqual(metadata["area_m2"], 72)
+        self.assertEqual(metadata["city_raw"], "Ha Noi")
+        self.assertEqual(metadata["district_raw"], "Ba Dinh")
+        self.assertEqual(metadata["ward_raw"], "Doi Can")
+
+        raw_text = raw_text_files[0].read_text(encoding="utf-8")
+        self.assertIn('"ad_id": 333', raw_text)
 
     def test_nhatot_bronze_reprocesses_to_silver_conformed_row(self):
         config_path = self._write_smoke_config()
