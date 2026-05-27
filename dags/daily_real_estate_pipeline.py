@@ -69,7 +69,7 @@ with DAG(
     # 1. Preflight checks to validate Spark and config files before expensive workloads start
     preflight = BashOperator(
         task_id="preflight_check",
-        bash_command="scripts/preflight_pipeline.sh --run-id {{ run_id }} --require-spark",
+        bash_command="bash scripts/preflight_pipeline.sh --run-id {{ run_id }} --require-spark",
         cwd=str(REPO_ROOT),
     )
 
@@ -78,14 +78,14 @@ with DAG(
         # Ingest batdongsan listings
         ingest_batdongsan = BashOperator(
             task_id="ingest_batdongsan",
-            bash_command="export CRAWL_CONFIGS=configs/team/batdongsan_house_150.yaml && scripts/run_daily_pipeline.sh --mode full",
+            bash_command="export CRAWL_CONFIGS=configs/team/batdongsan_house_150.yaml && bash scripts/run_daily_pipeline.sh --mode full",
             cwd=str(REPO_ROOT),
         )
 
         # Ingest nhatot listings
         ingest_nhatot = BashOperator(
             task_id="ingest_nhatot",
-            bash_command="export CRAWL_CONFIGS=configs/sources/nhatot.yaml && scripts/run_daily_pipeline.sh --mode full",
+            bash_command="export CRAWL_CONFIGS=configs/sources/nhatot.yaml && bash scripts/run_daily_pipeline.sh --mode full",
             cwd=str(REPO_ROOT),
         )
 
