@@ -273,12 +273,16 @@ if [[ "$VALIDATION_STATUS" != "pass" ]]; then
   exit 1
 fi
 
+echo "[5] Warehouse & Power BI Publishing"
+python -m publish.powerbi
+
 echo "[4] GCS sync"
 if [[ "$SYNC_TO_GCS" == "true" ]]; then
   GCS_SYNC_STATUS="running"
   gcloud storage rsync --recursive --exclude=".*\.crc$" "$PROJECT_DIR/data/bronze" "$BUCKET/bronze"
   gcloud storage rsync --recursive --exclude=".*\.crc$" "$PROJECT_DIR/data/silver" "$BUCKET/silver"
   gcloud storage rsync --recursive --delete-unmatched-destination-objects --exclude=".*\.crc$" "$PROJECT_DIR/data/gold" "$BUCKET/gold"
+  gcloud storage rsync --recursive --delete-unmatched-destination-objects --exclude=".*\.crc$" "$PROJECT_DIR/data/powerbi" "$BUCKET/powerbi"
   GCS_SYNC_STATUS="success"
 else
   GCS_SYNC_STATUS="skipped"

@@ -124,7 +124,18 @@ def _read_parquet_table(
             _fail(f"No parquet files found under: {table_path}")
         return None
 
-    frames = [pd.read_parquet(file_path) for file_path in parquet_files]
+    frames = []
+    for file_path in parquet_files:
+        df = pd.read_parquet(file_path)
+        # Traverse parent directories up to table_path to extract Hive partition values
+        for parent in file_path.parents:
+            if parent == table_path:
+                break
+            if "=" in parent.name:
+                part_col, part_val = parent.name.split("=", 1)
+                df[part_col] = part_val
+        frames.append(df)
+
     return pd.concat(frames, ignore_index=True, sort=False)
 
 

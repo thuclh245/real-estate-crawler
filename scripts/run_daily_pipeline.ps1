@@ -211,6 +211,10 @@ try {
         throw "Validation gate failed"
     }
 
+    Write-Log "[5] Warehouse & Power BI Publishing"
+    & $PythonExe -m publish.powerbi *>&1 | Tee-Object -FilePath $LogFile -Append
+    Assert-NativeSuccess "powerbi publishing"
+
     Write-Log "[4] GCS sync"
     if ($SyncToGcs -eq "true") {
         $script:GcsSyncStatus = "running"
@@ -220,6 +224,8 @@ try {
         Assert-NativeSuccess "silver gcs sync"
         gcloud storage rsync --recursive --delete-unmatched-destination-objects --exclude=".*\.crc$" "$ProjectDir\data\gold" "$Bucket/gold" *>&1 | Tee-Object -FilePath $LogFile -Append
         Assert-NativeSuccess "gold gcs sync"
+        gcloud storage rsync --recursive --delete-unmatched-destination-objects --exclude=".*\.crc$" "$ProjectDir\data\powerbi" "$Bucket/powerbi" *>&1 | Tee-Object -FilePath $LogFile -Append
+        Assert-NativeSuccess "powerbi gcs sync"
         $script:GcsSyncStatus = "success"
     } else {
         $script:GcsSyncStatus = "skipped"

@@ -105,11 +105,17 @@ with DAG(
             cwd=str(REPO_ROOT),
         )
 
-    # 5. Publication Task Group: loads optimized partitioned Gold Parquet tables into BigQuery
+    # 5. Publication Task Group: loads optimized partitioned Gold Parquet tables into BigQuery and exports Power BI flat marts
     with TaskGroup("publish_serving") as PublishGroup:
         publish_bq = BashOperator(
             task_id="publish_to_bigquery",
             bash_command="export PYTHONPATH=src && .venv/bin/python -m publish.bigquery",
+            cwd=str(REPO_ROOT),
+        )
+
+        publish_pbi = BashOperator(
+            task_id="publish_to_powerbi",
+            bash_command="export PYTHONPATH=src && .venv/bin/python -m publish.powerbi",
             cwd=str(REPO_ROOT),
         )
 
