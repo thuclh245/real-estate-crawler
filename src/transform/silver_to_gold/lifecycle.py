@@ -15,7 +15,10 @@ def build_listing_lifecycle(daily_deduped_df):
 def build_removed_listings(daily_deduped_df):
     dates_df = daily_deduped_df.select("crawl_date").distinct()
 
-    if dates_df.count() < 2:
+    # Thu thập danh sách ngày về Driver (vì chỉ có khoảng 20-30 ngày)
+    sorted_dates = sorted([row["crawl_date"] for row in dates_df.collect()])
+
+    if len(sorted_dates) < 2:
         return (
             daily_deduped_df.limit(0)
             .withColumn("snapshot_date", F.lit(None).cast("string"))
@@ -24,14 +27,20 @@ def build_removed_listings(daily_deduped_df):
             .withColumn("is_removed_listing", F.lit(True))
         )
 
-    date_window = Window.orderBy("crawl_date")
-    date_map = dates_df.withColumn(
-        "next_crawl_date", F.lead("crawl_date").over(date_window)
-    )
+    # Ánh xạ ngày hiện tại -> ngày crawl kế tiếp
+    mapping = {}
+    for i in range(len(sorted_dates) - 1):
+        mapping[sorted_dates[i]] = sorted_dates[i+1]
 
-    prev_with_next = daily_deduped_df.join(
-        date_map, on="crawl_date", how="left"
-    ).filter(F.col("next_crawl_date").isNotNull())
+    # Xây dựng cột next_crawl_date bằng biểu thức F.when (tránh Window & Join đắt đỏ)
+    expr = F.when(F.col("crawl_date") == sorted_dates[0], F.lit(mapping[sorted_dates[0]]))
+    for d in sorted_dates[1:-1]:
+        expr = expr.when(F.col("crawl_date") == d, F.lit(mapping[d]))
+    expr = expr.otherwise(F.lit(None).cast("string"))
+
+    prev_with_next = daily_deduped_df.withColumn("next_crawl_date", expr).filter(
+        F.col("next_crawl_date").isNotNull()
+    )
 
     next_presence = daily_deduped_df.select(
         "dedup_key", "crawl_date"
