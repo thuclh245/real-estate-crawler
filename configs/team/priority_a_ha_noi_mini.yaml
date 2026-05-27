@@ -1,0 +1,30 @@
+source: batdongsan
+source_domain: batdongsan.com.vn
+base_url: https://batdongsan.com.vn
+
+crawl_settings:
+  fetch_mode: crawl4ai
+  stop_on_block: true
+  save_images: false
+  request_delay_seconds: 5
+  concurrency: 1
+  max_pages_per_target: 1
+  max_listings_per_target: 15
+  max_retries: 1
+  retry_delay_seconds: 10
+  crawler_version: v0.1
+  parser_version: v0.1
+
+targets:
+  - city_slug: tp-ha-noi
+    city_label: Ha Noi
+    location_slug: phuong-thanh-xuan
+    location_path: phuong-thanh-xuan-tp-ha-noi
+    location_label: Thanh Xuan
+    location_level: ward_or_area
+    priority_group: A
+    categories:
+      - slug: ban-can-ho-chung-cu
+        label: Ban can ho chung cu
+        property_type_group: apartment
+        listing_business_type: sale

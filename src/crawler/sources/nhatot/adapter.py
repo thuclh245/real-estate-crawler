@@ -257,7 +257,7 @@ class NhatotAdapter:
                     transaction_query = f"&st={st}" if st else ""
                     api_url = (
                         f"https://gateway.chotot.com/v1/public/ad-listing"
-                        f"?cg={cg_id}&region=12&area={area_id}&page={page_number}&limit=20"
+                        f"?cg={cg_id}&region=12&area={area_id}&o={(page_number - 1) * 20}&limit=20"
                         f"{transaction_query}"
                     )
                     urls.append(api_url)

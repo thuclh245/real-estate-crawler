@@ -610,8 +610,13 @@ class CrawlOrchestrator:
                         "location_match_confidence"
                     ]
                     location_match_method = location_audit["location_match_method"]
+                    combined_text = "\n".join(
+                        str(text)
+                        for text in [detail_text, title, description]
+                        if text
+                    )
                     category_match_status, category_match_confidence = (
-                        classify_category_match(detail_text, category)
+                        classify_category_match(combined_text, category)
                     )
 
                     if location_match_status in {"mismatch", "unknown"}:
