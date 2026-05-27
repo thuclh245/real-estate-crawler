@@ -26,6 +26,42 @@ CRAWL_IDS_CREATED=""
 SOURCE_NAMES_CREATED=""
 INPUT_SILVER_PARTITIONS=""
 
+LOCKFILE="$PROJECT_DIR/data/daily_run.lock"
+GCS_LOCK="$BUCKET/locks/daily_run.lock"
+
+acquire_lock() {
+  if [[ -f "$LOCKFILE" ]]; then
+    local pid
+    pid=$(cat "$LOCKFILE")
+    if kill -0 "$pid" 2>/dev/null; then
+      echo "[ERROR] Another local pipeline run is already executing (PID: $pid). Aborting."
+      exit 3
+    fi
+  fi
+  
+  mkdir -p "$(dirname "$LOCKFILE")"
+  echo "$$" > "$LOCKFILE"
+
+  if [[ "$SYNC_TO_GCS" == "true" ]]; then
+    echo "[INFO] Checking GCS run lock..."
+    if gcloud storage ls "$GCS_LOCK" &>/dev/null; then
+      echo "[ERROR] Another pipeline run is active in GCS ($GCS_LOCK). Aborting."
+      rm -f "$LOCKFILE"
+      exit 4
+    fi
+    echo "[INFO] Acquiring GCS run lock..."
+    gcloud storage cp "$LOCKFILE" "$GCS_LOCK" &>/dev/null
+  fi
+}
+
+release_lock() {
+  echo "[INFO] Releasing pipeline run locks..."
+  rm -f "$LOCKFILE"
+  if [[ "$SYNC_TO_GCS" == "true" ]]; then
+    gcloud storage rm "$GCS_LOCK" &>/dev/null || true
+  fi
+}
+
 write_observability() {
   set +e
   local end_time_iso end_time_epoch duration_seconds
@@ -168,6 +204,9 @@ run_sources_to_silver() {
 }
 
 trap on_error ERR
+trap release_lock EXIT
+acquire_lock
+
 mkdir -p "$LOG_DIR"
 exec > >(tee -a "$LOG_FILE") 2>&1
 
@@ -176,7 +215,7 @@ source .venv/bin/activate
 export PYTHONPATH=src
 export PYTHONIOENCODING="${PYTHONIOENCODING:-utf-8}"
 export SPARK_MASTER="${SPARK_MASTER:-local[2]}"
-export SPARK_DRIVER_MEMORY="${SPARK_DRIVER_MEMORY:-4g}"
+export SPARK_DRIVER_MEMORY="${SPARK_DRIVER_MEMORY:-2g}"
 export SPARK_DRIVER_MAX_RESULT_SIZE="${SPARK_DRIVER_MAX_RESULT_SIZE:-1g}"
 export SPARK_SQL_SHUFFLE_PARTITIONS="${SPARK_SQL_SHUFFLE_PARTITIONS:-8}"
 export SPARK_DEFAULT_PARALLELISM="${SPARK_DEFAULT_PARALLELISM:-8}"
@@ -202,8 +241,13 @@ if [[ "$PIPELINE_MODE" == "full" ]]; then
 fi
 python -m src.validation.preflight "${PREFLIGHT_ARGS[@]}"
 
-echo "[1] Source-aware Crawl + Bronze-to-Silver"
-run_sources_to_silver "${CRAWL_CONFIG_ARRAY[@]}"
+if [[ "$PIPELINE_MODE" == "transform" || "$PIPELINE_MODE" == "no-crawl" ]]; then
+  echo "[1] Running Bronze-to-Silver on existing Bronze data (NO CRAWL)"
+  python scripts/tools/run_bronze_to_silver_all.py
+else
+  echo "[1] Source-aware Crawl + Bronze-to-Silver"
+  run_sources_to_silver "${CRAWL_CONFIG_ARRAY[@]}"
+fi
 
 if [[ "$PIPELINE_MODE" == "smoke" ]]; then
   PIPELINE_STATUS="success"

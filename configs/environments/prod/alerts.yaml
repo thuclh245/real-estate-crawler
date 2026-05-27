@@ -1,0 +1,6 @@
+alerts:
+  webhook_url: "${SLACK_WEBHOOK_URL}"
+  channels:
+    - slack
+  on_failure: true
+  on_sla_miss: true

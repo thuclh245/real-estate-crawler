@@ -1,0 +1,11 @@
+environment: dev
+spark:
+  driver_memory: 2g
+  master: local[2]
+gcs:
+  bucket: gs://bigdata-subject-real-estate-lakehouse-dev
+  sync_enabled: false
+bigquery:
+  dataset_id: bigdata-subject-real-estate-lakehouse-dev.gold
+publish:
+  policy: write_truncate
