@@ -36,10 +36,7 @@ def metric_strategy():
                 )
                 for key in RATE_KEYS
             },
-            **{
-                key: st.integers(min_value=0, max_value=1_000_000)
-                for key in COUNT_KEYS
-            },
+            **{key: st.integers(min_value=0, max_value=1_000_000) for key in COUNT_KEYS},
         }
     )
 

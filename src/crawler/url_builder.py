@@ -1,8 +1,6 @@
 def build_seed_url(
-    base_url: str,
-    category_slug: str,
-    location_path: str,
-    page_number: int = 1) -> str:
+    base_url: str, category_slug: str, location_path: str, page_number: int = 1
+) -> str:
     """
     Build listing page URL from category and full Batdongsan location path.
 

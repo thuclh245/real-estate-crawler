@@ -116,10 +116,18 @@ class DailyRunSummaryTest(unittest.TestCase):
         total_current_listings=st.integers(min_value=0, max_value=1_000_000),
         duplicate_record_count=st.integers(min_value=0, max_value=1_000_000),
         duplicate_rate=st.floats(min_value=0, max_value=1, allow_nan=False, allow_infinity=False),
-        parse_success_rate=st.floats(min_value=0, max_value=1, allow_nan=False, allow_infinity=False),
-        missing_price_rate=st.floats(min_value=0, max_value=1, allow_nan=False, allow_infinity=False),
-        missing_area_rate=st.floats(min_value=0, max_value=1, allow_nan=False, allow_infinity=False),
-        missing_location_rate=st.floats(min_value=0, max_value=1, allow_nan=False, allow_infinity=False),
+        parse_success_rate=st.floats(
+            min_value=0, max_value=1, allow_nan=False, allow_infinity=False
+        ),
+        missing_price_rate=st.floats(
+            min_value=0, max_value=1, allow_nan=False, allow_infinity=False
+        ),
+        missing_area_rate=st.floats(
+            min_value=0, max_value=1, allow_nan=False, allow_infinity=False
+        ),
+        missing_location_rate=st.floats(
+            min_value=0, max_value=1, allow_nan=False, allow_infinity=False
+        ),
     )
     def test_property_daily_run_summary_completeness(
         self,

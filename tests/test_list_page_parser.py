@@ -20,9 +20,7 @@ class ListPageParserTest(unittest.TestCase):
         self.assertEqual(len(entries), 1)
 
         entry = entries[0]
-        self.assertEqual(
-            entry["listing_url"], "https://batdongsan.com.vn/ban-nha/pr123456"
-        )
+        self.assertEqual(entry["listing_url"], "https://batdongsan.com.vn/ban-nha/pr123456")
         self.assertEqual(entry["listing_card_title"], "Nha pho dep")
         self.assertEqual(entry["listing_card_price_raw"], "10 ty")
         self.assertEqual(entry["listing_card_area_raw"], "100 m2")

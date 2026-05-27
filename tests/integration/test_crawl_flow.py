@@ -69,9 +69,7 @@ class CrawlFlowTest(unittest.TestCase):
                 "max_retries": 0,
                 "retry_delay_seconds": 0,
             },
-            "categories": [
-                {"slug": "ban-nha-rieng", "label": "Ban nha"}
-            ],
+            "categories": [{"slug": "ban-nha-rieng", "label": "Ban nha"}],
             "locations": [
                 {
                     "district": "quan-1",
@@ -102,7 +100,9 @@ class CrawlFlowTest(unittest.TestCase):
         metadata = json.loads(metadata_files[0].read_text(encoding="utf-8"))
         self.assertEqual(metadata.get("source"), "batdongsan")
         self.assertEqual(metadata.get("listing_url"), "https://batdongsan.com.vn/ban-nha/pr123456")
-        self.assertEqual(metadata.get("final_detail_url"), "https://batdongsan.com.vn/ban-nha/pr123456")
+        self.assertEqual(
+            metadata.get("final_detail_url"), "https://batdongsan.com.vn/ban-nha/pr123456"
+        )
         self.assertEqual(metadata.get("crawl_status"), "ok")
         self.assertEqual(metadata.get("http_status"), 200)
         self.assertEqual(metadata.get("fetch_mode"), "requests")
@@ -173,10 +173,7 @@ class CrawlFlowTest(unittest.TestCase):
         self.assertEqual(first_row["listing_url"], "https://batdongsan.com.vn/ban-nha/pr123456")
         self.assertFalse(
             (
-                self.base_dir
-                / "bronze"
-                / "source=batdongsan.com.vn"
-                / f"crawl_date={crawl_date}"
+                self.base_dir / "bronze" / "source=batdongsan.com.vn" / f"crawl_date={crawl_date}"
             ).exists()
         )
 

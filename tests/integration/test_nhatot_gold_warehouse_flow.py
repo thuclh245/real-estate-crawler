@@ -21,9 +21,9 @@ from warehouse import build_warehouse_outputs
 LIST_PAGE_HTML = (ROOT / "tests" / "fixtures" / "nhatot" / "list_page_sample.html").read_text(
     encoding="utf-8"
 )
-DETAIL_PAGE_HTML = (
-    ROOT / "tests" / "fixtures" / "nhatot" / "detail_page_sample.html"
-).read_text(encoding="utf-8")
+DETAIL_PAGE_HTML = (ROOT / "tests" / "fixtures" / "nhatot" / "detail_page_sample.html").read_text(
+    encoding="utf-8"
+)
 
 
 def fake_fetch_with_retry(url: str, mode: str, max_retries: int, retry_delay_seconds: float):

@@ -44,10 +44,7 @@ def write_phase3_summary(
 
     snapshot_dates = [
         row["snapshot_date"]
-        for row in snapshot_df.select("snapshot_date")
-        .distinct()
-        .orderBy("snapshot_date")
-        .collect()
+        for row in snapshot_df.select("snapshot_date").distinct().orderBy("snapshot_date").collect()
     ]
 
     summary = {
@@ -55,9 +52,7 @@ def write_phase3_summary(
         "total_current_listings": int(gold_current_df.count()),
         "duplicate_record_count": duplicate_record_count,
         "duplicate_rate": (
-            duplicate_record_count / total_silver_records
-            if total_silver_records
-            else 0.0
+            duplicate_record_count / total_silver_records if total_silver_records else 0.0
         ),
         "parse_success_rate": (
             int(quality_totals["parse_success_count"] or 0) / total_silver_records
@@ -86,7 +81,5 @@ def write_phase3_summary(
 
     output_file = Path(output_path)
     output_file.parent.mkdir(parents=True, exist_ok=True)
-    output_file.write_text(
-        json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    output_file.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
     log_step(f"Phase 3 summary written to: {output_file}")

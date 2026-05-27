@@ -173,9 +173,7 @@ def _require_known_values(
     df: pd.DataFrame, column_name: str, allowed_values: set, table_name: str
 ) -> None:
     if column_name not in df.columns:
-        fail(
-            f"{table_name} missing required column for foreign-key validation: {column_name}"
-        )
+        fail(f"{table_name} missing required column for foreign-key validation: {column_name}")
 
     invalid_values = df.loc[
         df[column_name].isna() | ~df[column_name].isin(allowed_values), column_name
@@ -189,13 +187,9 @@ def _require_unknown_member(
     df: pd.DataFrame, key_column: str, expected_value, table_name: str
 ) -> None:
     if key_column not in df.columns:
-        fail(
-            f"{table_name} missing required column for unknown-member validation: {key_column}"
-        )
+        fail(f"{table_name} missing required column for unknown-member validation: {key_column}")
     if expected_value not in set(df[key_column].tolist()):
-        fail(
-            f"{table_name} missing explicit unknown member for {key_column}={expected_value}"
-        )
+        fail(f"{table_name} missing explicit unknown member for {key_column}={expected_value}")
 
 
 def check_warehouse_summary(warehouse_base_path: Path = WAREHOUSE_BASE_PATH) -> None:
@@ -216,9 +210,7 @@ def _unique_count(df: pd.DataFrame, columns: list[str]) -> int:
     return int(df.drop_duplicates(subset=columns).shape[0])
 
 
-def _check_snapshot_reconciliation(
-    warehouse_base_path: Path, gold_base_path: Path
-) -> None:
+def _check_snapshot_reconciliation(warehouse_base_path: Path, gold_base_path: Path) -> None:
     gold_snapshot_df = _read_optional_table(gold_base_path, "gold_listing_snapshots")
     if gold_snapshot_df is None:
         gold_snapshot_df = _read_optional_table(gold_base_path, "gold_current_listings")
@@ -263,38 +255,28 @@ def check_warehouse_tables(
             fail(f"{table_name} has {row_count} rows, expected >= {rule['min_count']}")
 
         missing_columns = [
-            column_name
-            for column_name in rule["columns"]
-            if column_name not in df.columns
+            column_name for column_name in rule["columns"] if column_name not in df.columns
         ]
         if missing_columns:
             fail(f"{table_name} missing columns: {missing_columns}")
 
         if table_name == "dim_date" and row_count != _unique_count(df, ["date_key"]):
             fail("dim_date contains duplicate date_key values")
-        if table_name == "dim_source" and row_count != _unique_count(
-            df, ["source_key"]
-        ):
+        if table_name == "dim_source" and row_count != _unique_count(df, ["source_key"]):
             fail("dim_source contains duplicate source_key values")
         if table_name == "dim_property_type" and row_count != _unique_count(
             df, ["property_type_key"]
         ):
             fail("dim_property_type contains duplicate property_type_key values")
-        if table_name == "dim_location_basic" and row_count != _unique_count(
-            df, ["location_key"]
-        ):
+        if table_name == "dim_location_basic" and row_count != _unique_count(df, ["location_key"]):
             fail("dim_location_basic contains duplicate location_key values")
-        if table_name == "dim_listing" and row_count != _unique_count(
-            df, ["listing_key"]
-        ):
+        if table_name == "dim_listing" and row_count != _unique_count(df, ["listing_key"]):
             fail("dim_listing contains duplicate listing_key values")
 
         if table_name == "dim_source":
             _require_unknown_member(df, "source_key", 0, table_name)
         if table_name == "dim_property_type":
-            _require_unknown_member(
-                df, "property_type_key", "0000000000000000", table_name
-            )
+            _require_unknown_member(df, "property_type_key", "0000000000000000", table_name)
         if table_name == "dim_location_basic":
             _require_unknown_member(df, "location_key", "0000000000000000", table_name)
 
@@ -307,12 +289,8 @@ def check_warehouse_tables(
             _require_known_values(df, "source_key", dim_source_keys, table_name)
             _require_known_values(df, "listing_key", dim_listing_keys, table_name)
             _require_known_values(df, "location_key", dim_location_keys, table_name)
-            _require_known_values(
-                df, "property_type_key", dim_property_type_keys, table_name
-            )
-            key_count = _unique_count(
-                df, ["snapshot_date_key", "source_key", "listing_key"]
-            )
+            _require_known_values(df, "property_type_key", dim_property_type_keys, table_name)
+            key_count = _unique_count(df, ["snapshot_date_key", "source_key", "listing_key"])
             if row_count != key_count:
                 fail("fact_listing_snapshot contains duplicate fact grain values")
         if table_name == "fact_data_quality_daily":
@@ -324,9 +302,7 @@ def check_warehouse_tables(
 
         expected_count = expected_row_counts.get(table_name)
         if expected_count is not None and row_count != int(expected_count):
-            fail(
-                f"{table_name} row count mismatch: table={row_count}, summary={expected_count}"
-            )
+            fail(f"{table_name} row count mismatch: table={row_count}, summary={expected_count}")
 
         print(f"PASS: {table_name} rows={row_count}")
 

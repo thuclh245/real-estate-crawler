@@ -7,7 +7,11 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from crawler.sources.nhatot import NhatotAdapter
-from crawler.sources.nhatot.adapter import IN_MEMORY_AD_CACHE, extract_ads_from_state, extract_next_state
+from crawler.sources.nhatot.adapter import (
+    IN_MEMORY_AD_CACHE,
+    extract_ads_from_state,
+    extract_next_state,
+)
 
 
 class NhatotAdapterTest(unittest.TestCase):
@@ -185,7 +189,9 @@ class NhatotAdapterTest(unittest.TestCase):
     def test_parse_list_page_handles_empty_and_invalid_pages(self):
         empty_fixture = ROOT / "tests" / "fixtures" / "nhatot" / "list_page_empty.html"
 
-        self.assertEqual(self.adapter.parse_list_page(empty_fixture.read_text(encoding="utf-8")), [])
+        self.assertEqual(
+            self.adapter.parse_list_page(empty_fixture.read_text(encoding="utf-8")), []
+        )
         self.assertEqual(self.adapter.parse_list_page("<html></html>"), [])
 
     def test_parse_detail_page_maps_next_state_to_crawler_detail_contract(self):

@@ -121,9 +121,7 @@ class DailyRunSummary:
         """Generate a stable daily run summary from pipeline state and metrics."""
         metrics = gold_summary or {}
         normalized_status = (
-            "failed"
-            if pipeline_status == "failed" or error_message
-            else pipeline_status
+            "failed" if pipeline_status == "failed" or error_message else pipeline_status
         )
         normalized_error = error_message
         if normalized_status == "failed" and not normalized_error:
@@ -169,9 +167,7 @@ class DailyRunSummary:
         if not run_date:
             raise ValueError("summary must contain run_date")
 
-        output_path = (
-            Path(output_dir) / f"run_date={run_date}" / "daily_run_summary.json"
-        )
+        output_path = Path(output_dir) / f"run_date={run_date}" / "daily_run_summary.json"
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(
             json.dumps(summary, ensure_ascii=False, indent=2) + "\n",
@@ -218,9 +214,7 @@ class ProductionRunSummary:
         normalized_mode = str(pipeline_mode)
         normalized_run_class = run_class or _default_run_class(normalized_mode)
         normalized_status = (
-            "failed"
-            if pipeline_status == "failed" or error_message
-            else str(pipeline_status)
+            "failed" if pipeline_status == "failed" or error_message else str(pipeline_status)
         )
         total_silver_records = (
             _to_int(silver_records_written)

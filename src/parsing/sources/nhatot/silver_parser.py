@@ -40,7 +40,9 @@ def _to_int(value: object) -> int | None:
         return None
 
 
-def _dedup_key(source: object, listing_id: object, listing_url: object) -> tuple[str | None, str | None]:
+def _dedup_key(
+    source: object, listing_id: object, listing_url: object
+) -> tuple[str | None, str | None]:
     source_code = clean_text(str(source or "nhatot")) or "nhatot"
     listing_id_text = clean_text(str(listing_id)) if listing_id is not None else None
     if listing_id_text:
@@ -62,9 +64,15 @@ def parse_listing(
     source = metadata.get("source") or metadata.get("source_code") or "nhatot"
     listing_id = metadata.get("listing_id")
     listing_url = metadata.get("listing_url")
-    title_raw = clean_text(_first_nonempty(metadata.get("title"), metadata.get("listing_card_title")))
+    title_raw = clean_text(
+        _first_nonempty(metadata.get("title"), metadata.get("listing_card_title"))
+    )
     description_raw = clean_text(
-        _first_nonempty(metadata.get("description"), metadata.get("listing_card_description"), raw_text[:3000] if raw_text else None)
+        _first_nonempty(
+            metadata.get("description"),
+            metadata.get("listing_card_description"),
+            raw_text[:3000] if raw_text else None,
+        )
     )
 
     price_raw = clean_text(metadata.get("listing_card_price_raw"))
@@ -86,7 +94,11 @@ def parse_listing(
             metadata.get("crawl_location_label"),
         )
     )
-    city_raw = clean_text(_first_nonempty(metadata.get("city_raw"), metadata.get("crawl_city_label"), metadata.get("crawl_city")))
+    city_raw = clean_text(
+        _first_nonempty(
+            metadata.get("city_raw"), metadata.get("crawl_city_label"), metadata.get("crawl_city")
+        )
+    )
     district_raw = clean_text(
         _first_nonempty(
             metadata.get("district_raw"),

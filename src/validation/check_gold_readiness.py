@@ -74,8 +74,7 @@ def load_gold_summary() -> dict:
 
 def create_spark() -> SparkSession:
     return (
-        SparkSession.builder
-        .appName("CheckGoldReadiness")
+        SparkSession.builder.appName("CheckGoldReadiness")
         .master("local[*]")
         .config("spark.sql.session.timeZone", "Asia/Ho_Chi_Minh")
         .getOrCreate()

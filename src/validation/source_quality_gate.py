@@ -44,9 +44,7 @@ def evaluate_source_quality_gate(
     total_records = _safe_int(metrics.get("total_records"))
     min_expected_records = _safe_int(thresholds.get("min_expected_records"))
     if total_records < min_expected_records:
-        failures.append(
-            f"total_records {total_records} below minimum {min_expected_records}"
-        )
+        failures.append(f"total_records {total_records} below minimum {min_expected_records}")
 
     _check_min_rate(
         failures,

@@ -36,13 +36,8 @@ def build_source_acceptance_pack(
         "source_scorecard_passed": scorecard.get("gate_status") == "pass",
         "silver_records_present": _safe_int(scorecard.get("total_records")) > 0,
         "warehouse_source_present": source_code in warehouse_source_codes,
-        "warehouse_snapshot_fact_present": _safe_int(
-            table_counts.get("fact_listing_snapshot")
-        )
-        > 0,
-        "warehouse_quality_fact_present": _safe_int(
-            table_counts.get("fact_data_quality_daily")
-        )
+        "warehouse_snapshot_fact_present": _safe_int(table_counts.get("fact_listing_snapshot")) > 0,
+        "warehouse_quality_fact_present": _safe_int(table_counts.get("fact_data_quality_daily"))
         > 0,
         "production_scope_is_silver_only": (source_config.get("compatibility") or {}).get(
             "production_scope"
@@ -94,10 +89,7 @@ def write_source_acceptance_pack(
     """Write source acceptance evidence JSON atomically."""
     source_code = str(acceptance_pack.get("source_code") or "unknown")
     output_path = (
-        Path(output_dir)
-        / "source_acceptance"
-        / f"source={source_code}"
-        / "source_acceptance.json"
+        Path(output_dir) / "source_acceptance" / f"source={source_code}" / "source_acceptance.json"
     )
     _atomic_write_json(output_path, acceptance_pack)
     return output_path

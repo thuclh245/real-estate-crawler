@@ -12,6 +12,7 @@ def html_to_text(html: str) -> str:
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     return "\n".join(lines)
 
+
 def extract_listing_id(url: str) -> str | None:
     match = re.search(r"pr(\d+)", url)
     if match:

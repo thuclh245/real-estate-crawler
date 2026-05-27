@@ -67,9 +67,7 @@ def run_preflight(
     if require_spark:
         checks.extend(
             [
-                _check(
-                    "java_runtime", shutil.which("java") is not None, "java executable"
-                ),
+                _check("java_runtime", shutil.which("java") is not None, "java executable"),
                 _check(
                     "pyspark_import",
                     importlib.util.find_spec("pyspark") is not None,
@@ -129,11 +127,7 @@ def _check(name: str, passed: bool, detail: str) -> dict[str, str]:
 
 
 def _exit_code(checks: list[dict[str, str]]) -> int:
-    return (
-        EXIT_HARD_FAILURE
-        if any(check["status"] == "fail" for check in checks)
-        else EXIT_PASS
-    )
+    return EXIT_HARD_FAILURE if any(check["status"] == "fail" for check in checks) else EXIT_PASS
 
 
 def _path_writable(path: Path) -> bool:
@@ -150,9 +144,7 @@ def _path_writable(path: Path) -> bool:
 def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp_path = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-    tmp_path.write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-    )
+    tmp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     tmp_path.replace(path)
 
 

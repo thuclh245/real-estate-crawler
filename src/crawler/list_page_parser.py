@@ -19,19 +19,13 @@ def extract_listing_entries_from_listing_page(html: str) -> list[dict]:
 
     cards = soup.select(".js__card-listing")
     if not cards:
-        cards = [
-            a.parent
-            for a in soup.find_all("a", href=True)
-            if "pr" in (a.get("href") or "")
-        ]
+        cards = [a.parent for a in soup.find_all("a", href=True) if "pr" in (a.get("href") or "")]
 
     for card in cards:
         if not card:
             continue
 
-        link = card.select_one("a[href*='pr'][href*='ban-']") or card.find(
-            "a", href=True
-        )
+        link = card.select_one("a[href*='pr'][href*='ban-']") or card.find("a", href=True)
         href = (link.get("href") or "").strip() if link else ""
         if not href:
             continue
@@ -46,9 +40,7 @@ def extract_listing_entries_from_listing_page(html: str) -> list[dict]:
         location_el = card.select_one(".re__card-location")
         description_el = card.select_one(".js__card-description, .re__card-description")
 
-        location_raw = (
-            clean_text(location_el.get_text(" ", strip=True)) if location_el else None
-        )
+        location_raw = clean_text(location_el.get_text(" ", strip=True)) if location_el else None
         entry = {
             "listing_url": absolute,
             "listing_card_title": (
@@ -61,13 +53,9 @@ def extract_listing_entries_from_listing_page(html: str) -> list[dict]:
                 clean_text(area_el.get_text(" ", strip=True)) if area_el else None
             ),
             "listing_card_location_raw": location_raw,
-            "listing_card_old_district_raw": parse_listing_card_old_district(
-                location_raw
-            ),
+            "listing_card_old_district_raw": parse_listing_card_old_district(location_raw),
             "listing_card_description": (
-                clean_text(description_el.get_text(" ", strip=True))
-                if description_el
-                else None
+                clean_text(description_el.get_text(" ", strip=True)) if description_el else None
             ),
         }
         entries_by_url.setdefault(absolute, entry)
@@ -76,7 +64,4 @@ def extract_listing_entries_from_listing_page(html: str) -> list[dict]:
 
 
 def extract_listing_urls_from_listing_page(html: str) -> list[str]:
-    return [
-        entry["listing_url"]
-        for entry in extract_listing_entries_from_listing_page(html)
-    ]
+    return [entry["listing_url"] for entry in extract_listing_entries_from_listing_page(html)]

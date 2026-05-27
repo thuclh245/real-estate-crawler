@@ -74,23 +74,17 @@ class DataQualityReport:
         )
 
         parse_success = _safe_float(parse_success_rate, 0.0)
-        if (
-            parse_success >= excellent_parse_floor
-            and self._rates_within_baseline(
-                current,
-                baseline_metrics,
-                effective_tolerances["excellent_rate_increase"],
-            )
+        if parse_success >= excellent_parse_floor and self._rates_within_baseline(
+            current,
+            baseline_metrics,
+            effective_tolerances["excellent_rate_increase"],
         ):
             return "excellent"
 
-        if (
-            parse_success >= good_parse_floor
-            and self._rates_within_baseline(
-                current,
-                baseline_metrics,
-                effective_tolerances["good_rate_increase"],
-            )
+        if parse_success >= good_parse_floor and self._rates_within_baseline(
+            current,
+            baseline_metrics,
+            effective_tolerances["good_rate_increase"],
         ):
             return "good"
 

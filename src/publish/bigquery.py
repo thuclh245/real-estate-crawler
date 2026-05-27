@@ -50,7 +50,7 @@ def publish_gcs_to_bq(
         # Match using standard single wildcard * (supported by BigQuery)
         gcs_uri = f"gs://{bucket_name}/gold/{folder_name}/*"
         source_uri_prefix = f"gs://{bucket_name}/gold/{folder_name}/"
-        
+
         # Configure Hive Partitioning Options to auto-detect partition columns from paths
         hive_options = bigquery.HivePartitioningOptions()
         hive_options.mode = "AUTO"
@@ -69,7 +69,7 @@ def publish_gcs_to_bq(
     else:
         # Load flat parquet files using standard single wildcard
         gcs_uri = f"gs://{bucket_name}/gold/{folder_name}/*"
-        
+
         # Configure standard non-partitioned loading job with WRITE_TRUNCATE
         job_config = bigquery.LoadJobConfig(
             source_format=bigquery.SourceFormat.PARQUET,
@@ -141,15 +141,18 @@ def main():
     # Run a quick GCS cleanup of .crc files before loading to prevent BigQuery format failures
     try:
         import subprocess
+
         bucket_name = get_gcs_bucket()
-        print(f"[INFO] Cleaning up .crc checksum files from GCS: gs://{bucket_name}/gold/**/*.crc ...")
+        print(
+            f"[INFO] Cleaning up .crc checksum files from GCS: gs://{bucket_name}/gold/**/*.crc ..."
+        )
         # Run gcloud storage rm recursively to delete all .crc files from the GCS gold directory
         # The gcloud CLI is natively available on the VM
         subprocess.run(
-            f"gcloud storage rm \"gs://{bucket_name}/gold/**/*.crc\"",
+            f'gcloud storage rm "gs://{bucket_name}/gold/**/*.crc"',
             shell=True,
             capture_output=True,
-            text=True
+            text=True,
         )
         print("✓ [SUCCESS] GCS .crc files cleanup process finished.")
     except Exception as e:
@@ -173,9 +176,7 @@ def main():
         print(f"[INFO] Table {folder_name} -> Partitioned: {is_partitioned}")
 
         # Determine correct partition column (gold_data_quality_daily partitioned on crawl_date)
-        partition_col = (
-            "crawl_date" if "data_quality" in folder_name else "snapshot_date"
-        )
+        partition_col = "crawl_date" if "data_quality" in folder_name else "snapshot_date"
 
         success = publish_gcs_to_bq(
             folder_name, table_id, partition_col, is_partitioned=is_partitioned
@@ -183,9 +184,7 @@ def main():
         if success:
             success_count += 1
 
-    print(
-        f"\n=== BIGQUERY PUBLISH COMPLETE: {success_count}/{attempt_count} tables loaded. ==="
-    )
+    print(f"\n=== BIGQUERY PUBLISH COMPLETE: {success_count}/{attempt_count} tables loaded. ===")
 
 
 if __name__ == "__main__":

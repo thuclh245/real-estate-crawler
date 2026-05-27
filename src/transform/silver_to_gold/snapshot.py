@@ -19,15 +19,12 @@ def build_snapshot_table(daily_deduped_df, lifecycle_df):
 def add_price_change_tracking(snapshot_df):
     window_spec = Window.partitionBy("dedup_key").orderBy("snapshot_date")
 
-    snapshot_df = snapshot_df.withColumn(
-        "previous_price_vnd", F.lag("price_vnd").over(window_spec)
-    )
+    snapshot_df = snapshot_df.withColumn("previous_price_vnd", F.lag("price_vnd").over(window_spec))
     snapshot_df = snapshot_df.withColumn("current_price_vnd", F.col("price_vnd"))
     snapshot_df = snapshot_df.withColumn(
         "price_change_vnd",
         F.when(
-            F.col("previous_price_vnd").isNotNull()
-            & F.col("current_price_vnd").isNotNull(),
+            F.col("previous_price_vnd").isNotNull() & F.col("current_price_vnd").isNotNull(),
             F.col("current_price_vnd") - F.col("previous_price_vnd"),
         ),
     )
@@ -54,8 +51,7 @@ def add_price_change_tracking(snapshot_df):
     return snapshot_df.withColumn(
         "snapshot_status",
         F.when(
-            F.col("is_new_listing").eqNullSafe(F.lit(False))
-            & F.col("is_price_changed"),
+            F.col("is_new_listing").eqNullSafe(F.lit(False)) & F.col("is_price_changed"),
             F.lit("changed_price"),
         ).otherwise(F.col("snapshot_status")),
     )
@@ -88,10 +84,7 @@ def add_info_change_tracking(snapshot_df):
             F.when(
                 F.col(previous_col).isNotNull()
                 & F.col(field_name).isNotNull()
-                & (
-                    F.col(previous_col).cast("string")
-                    != F.col(field_name).cast("string")
-                ),
+                & (F.col(previous_col).cast("string") != F.col(field_name).cast("string")),
                 F.lit(True),
             ).otherwise(F.lit(False)),
         )

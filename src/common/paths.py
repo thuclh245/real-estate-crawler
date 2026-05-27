@@ -31,9 +31,7 @@ def quarantine_dir(base_dir: Path | str | None = None) -> Path:
     return data_dir(base_dir) / "quarantine"
 
 
-def bronze_source_dir(
-    source: str = "batdongsan", base_dir: Path | str | None = None
-) -> Path:
+def bronze_source_dir(source: str = "batdongsan", base_dir: Path | str | None = None) -> Path:
     return bronze_dir(base_dir) / f"source={source}"
 
 

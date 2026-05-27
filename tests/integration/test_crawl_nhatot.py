@@ -233,11 +233,7 @@ async def run(args: argparse.Namespace) -> Path:
     raw_html_dir.mkdir(parents=True, exist_ok=True)
     clean_text_dir.mkdir(parents=True, exist_ok=True)
 
-    run_date = (
-        datetime.strptime(args.run_date, "%Y-%m-%d")
-        if args.run_date
-        else datetime.now()
-    )
+    run_date = datetime.strptime(args.run_date, "%Y-%m-%d") if args.run_date else datetime.now()
     page = args.page or default_page_for_date(run_date, args.page_cycle)
     selected_districts = DISTRICTS[: args.max_districts]
     selected_categories = CATEGORIES[: args.max_categories]
@@ -257,9 +253,7 @@ async def run(args: argparse.Namespace) -> Path:
                 )
 
                 try:
-                    status, html, markdown, final_url = await fetch_page(
-                        crawler, page_url
-                    )
+                    status, html, markdown, final_url = await fetch_page(crawler, page_url)
                     rows = parse_listing_rows(
                         html,
                         page_url,
@@ -273,9 +267,7 @@ async def run(args: argparse.Namespace) -> Path:
                         print(
                             f"[FALLBACK] no listings on page={requested_page}; trying page=1 | {fallback_url}"
                         )
-                        status, html, markdown, final_url = await fetch_page(
-                            crawler, fallback_url
-                        )
+                        status, html, markdown, final_url = await fetch_page(crawler, fallback_url)
                         used_page = 1
                         page_url = fallback_url
                         rows = parse_listing_rows(
@@ -292,9 +284,7 @@ async def run(args: argparse.Namespace) -> Path:
                     error_message = str(exc)
 
                 (raw_html_dir / f"{page_stem}.html").write_text(html, encoding="utf-8")
-                (clean_text_dir / f"{page_stem}.md").write_text(
-                    markdown, encoding="utf-8"
-                )
+                (clean_text_dir / f"{page_stem}.md").write_text(markdown, encoding="utf-8")
 
                 page_summary = {
                     "district_name": district["name"],
@@ -363,9 +353,7 @@ async def run(args: argparse.Namespace) -> Path:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Test crawl Nhatot listing pages with Crawl4AI"
-    )
+    parser = argparse.ArgumentParser(description="Test crawl Nhatot listing pages with Crawl4AI")
     parser.add_argument("--output-dir", default="data/test/nhatot_crawl")
     parser.add_argument("--limit-per-group", type=int, default=5)
     parser.add_argument("--max-districts", type=int, default=len(DISTRICTS))

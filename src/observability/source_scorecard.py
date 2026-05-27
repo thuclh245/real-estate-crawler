@@ -109,16 +109,10 @@ def build_source_scorecard(
         "scorecard_schema_version": SOURCE_SCORECARD_SCHEMA_VERSION,
         "source_code": source_code,
         "crawl_date": str(
-            crawl_summary.get("crawl_date")
-            or silver_quality_summary.get("crawl_date")
-            or ""
+            crawl_summary.get("crawl_date") or silver_quality_summary.get("crawl_date") or ""
         ),
         "crawl_id": str(crawl_summary.get("crawl_id") or ""),
-        "run_id": str(
-            crawl_summary.get("run_id")
-            or crawl_summary.get("crawl_id")
-            or ""
-        ),
+        "run_id": str(crawl_summary.get("run_id") or crawl_summary.get("crawl_id") or ""),
         **metrics,
         "gate_status": gate_decision.status,
         "gate_failures": gate_decision.failures,

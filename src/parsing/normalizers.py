@@ -161,9 +161,7 @@ def calculate_total_price(
     return int(price_vnd)
 
 
-def normalize_property_type(
-    category: Optional[str], title: Optional[str] = None
-) -> Optional[str]:
+def normalize_property_type(category: Optional[str], title: Optional[str] = None) -> Optional[str]:
     """
     Chuẩn hóa loại bất động sản từ crawl_category hoặc title.
     """
@@ -178,12 +176,7 @@ def normalize_property_type(
     if "ban-dat" in text or "bán đất" in text:
         return "land"
 
-    if (
-        "biet-thu" in text
-        or "biệt thự" in text
-        or "lien-ke" in text
-        or "liền kề" in text
-    ):
+    if "biet-thu" in text or "biệt thự" in text or "lien-ke" in text or "liền kề" in text:
         return "villa_townhouse"
 
     if "mat-pho" in text or "mặt phố" in text:

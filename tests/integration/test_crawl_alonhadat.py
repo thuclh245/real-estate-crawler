@@ -110,9 +110,7 @@ def parse_listing_cards(
             else None
         )
         image = card.select_one(".thumbnail img")
-        image_url = (
-            urljoin(BASE_URL, image.get("src")) if image and image.get("src") else None
-        )
+        image_url = urljoin(BASE_URL, image.get("src")) if image and image.get("src") else None
         created = card.select_one(".created-date")
 
         row = {
@@ -173,9 +171,7 @@ def parse_listing_cards(
                 if card.select_one(".old-address")
                 else None
             ),
-            "posted_date_raw": (
-                clean_text(created.get_text(" ", strip=True)) if created else None
-            ),
+            "posted_date_raw": (clean_text(created.get_text(" ", strip=True)) if created else None),
             "posted_date": created.get("datetime") if created else None,
             "image_url": image_url,
         }
@@ -235,21 +231,15 @@ async def run(args: argparse.Namespace) -> Path:
                 print(f"[FETCH] {district['name']} | {category['name']} | {page_url}")
 
                 try:
-                    status, html, markdown, final_url = await fetch_page(
-                        crawler, page_url
-                    )
-                    rows = parse_listing_cards(
-                        html, page_url, district, category, group_limit
-                    )
+                    status, html, markdown, final_url = await fetch_page(crawler, page_url)
+                    rows = parse_listing_cards(html, page_url, district, category, group_limit)
                     error_message = None
                 except Exception as exc:
                     status, html, markdown, final_url, rows = None, "", "", page_url, []
                     error_message = str(exc)
 
                 (raw_html_dir / f"{page_stem}.html").write_text(html, encoding="utf-8")
-                (clean_text_dir / f"{page_stem}.md").write_text(
-                    markdown, encoding="utf-8"
-                )
+                (clean_text_dir / f"{page_stem}.md").write_text(markdown, encoding="utf-8")
 
                 page_summary = {
                     "district_name": district["name"],
@@ -314,9 +304,7 @@ async def run(args: argparse.Namespace) -> Path:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Test crawl Alonhadat listing pages with Crawl4AI"
-    )
+    parser = argparse.ArgumentParser(description="Test crawl Alonhadat listing pages with Crawl4AI")
     parser.add_argument("--output-dir", default="data/test/alonhadat_crawl")
     parser.add_argument("--limit-per-group", type=int, default=5)
     parser.add_argument(

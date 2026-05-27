@@ -48,7 +48,9 @@ def validate_seed_url(seed_url: str, final_url: str, location_path: str) -> bool
     return True
 
 
-def check_location_match(raw_text: str, expected_label: str | None, expected_slug: str | None = "") -> bool:
+def check_location_match(
+    raw_text: str, expected_label: str | None, expected_slug: str | None = ""
+) -> bool:
     if not raw_text:
         return False
 
@@ -115,7 +117,9 @@ def classify_location_match(
     return "assumed_from_seed", "medium", "seed_url_context"
 
 
-def audit_location(record: dict, target: dict, known_location_labels: list[str] | None = None) -> dict:
+def audit_location(
+    record: dict, target: dict, known_location_labels: list[str] | None = None
+) -> dict:
     expected_label = target.get("location_label") or target.get("district_label")
     expected_slug = target.get("location_slug") or target.get("district")
     expected_path = target.get("location_path") or target.get("district") or ""
@@ -124,7 +128,11 @@ def audit_location(record: dict, target: dict, known_location_labels: list[str] 
     evidence_candidates = [
         ("detail_address_block", record.get("detail_address_raw"), "high"),
         ("listing_card_location", record.get("listing_card_location_raw"), "high"),
-        ("breadcrumb", record.get("breadcrumb_location_raw") or record.get("breadcrumb_raw"), "high"),
+        (
+            "breadcrumb",
+            record.get("breadcrumb_location_raw") or record.get("breadcrumb_raw"),
+            "high",
+        ),
     ]
 
     for method, evidence_text, confidence in evidence_candidates:
@@ -138,7 +146,9 @@ def audit_location(record: dict, target: dict, known_location_labels: list[str] 
                 "location_match_method": method,
             }
 
-        conflict_label = detect_location_conflict(evidence_text or "", expected_label, known_location_labels or [])
+        conflict_label = detect_location_conflict(
+            evidence_text or "", expected_label, known_location_labels or []
+        )
         if conflict_label:
             return {
                 "location_evidence_text": evidence_text,
@@ -149,7 +159,11 @@ def audit_location(record: dict, target: dict, known_location_labels: list[str] 
                 "location_match_method": f"{method}_contains_other_location:{conflict_label}",
             }
 
-        if evidence_text and method in {"detail_address_block", "listing_card_location", "breadcrumb"}:
+        if evidence_text and method in {
+            "detail_address_block",
+            "listing_card_location",
+            "breadcrumb",
+        }:
             return {
                 "location_evidence_text": evidence_text,
                 "location_evidence_source": method,
@@ -209,7 +223,9 @@ def classify_category_match(raw_text: str, category_slug: str) -> tuple[str, str
     return "unknown", "low"
 
 
-def extract_detail_location_raw(raw_text: str, expected_label: str | None, expected_slug: str | None) -> str | None:
+def extract_detail_location_raw(
+    raw_text: str, expected_label: str | None, expected_slug: str | None
+) -> str | None:
     if not raw_text:
         return None
 

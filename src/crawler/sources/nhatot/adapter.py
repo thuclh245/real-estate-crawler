@@ -30,14 +30,11 @@ DISTRICT_MAPPING = {
     "quan-long-bien": 81,
     "quan-nam-tu-liem": 121,
     "quan-tay-ho": 78,
-    "quan-thanh-xuan": 77
+    "quan-thanh-xuan": 77,
 }
 
 # Mapping of targets to category IDs
-CATEGORY_MAPPING = {
-    "mua-ban-can-ho-chung-cu": 1010,
-    "mua-ban-nha-dat": 1020
-}
+CATEGORY_MAPPING = {"mua-ban-can-ho-chung-cu": 1010, "mua-ban-nha-dat": 1020}
 
 CATEGORY_SLUG_BY_ID = {value: key for key, value in CATEGORY_MAPPING.items()}
 
@@ -164,9 +161,7 @@ def build_listing_url(ad: dict[str, Any], base_url: str = DEFAULT_BASE_URL) -> s
 
     category_slug = clean_text(ad.get("category_slug")) or "mua-ban-nha-dat"
     location_slug = (
-        clean_text(ad.get("location_slug"))
-        or clean_text(ad.get("district_slug"))
-        or "viet-nam"
+        clean_text(ad.get("location_slug")) or clean_text(ad.get("district_slug")) or "viet-nam"
     )
     return f"{base_url.rstrip('/')}/{category_slug}-{location_slug}/{listing_id}.htm"
 
@@ -282,7 +277,7 @@ class NhatotAdapter:
 
     def parse_list_page(self, html: str) -> list[dict]:
         stripped = (html or "").strip()
-        
+
         # Polymorphic check: If the response is Chợ Tốt API JSON
         if stripped.startswith("{") or stripped.startswith("["):
             try:
@@ -318,7 +313,7 @@ class NhatotAdapter:
                         "listing_url": web_url,  # Point orchestrator to web URL (which intercepts standard fetch)
                         "listing_card_title": clean_text(ad.get("subject")),
                         "listing_card_price_raw": clean_text(ad.get("price_string")),
-                        "listing_card_area_raw": f"{ad.get('size')} m2" if ad.get('size') else None,
+                        "listing_card_area_raw": f"{ad.get('size')} m2" if ad.get("size") else None,
                         "listing_card_location_raw": clean_text(location_raw),
                         "listing_card_description": clean_text(ad.get("body")),
                         "property_type_group": clean_text(ad.get("property_type_group")),

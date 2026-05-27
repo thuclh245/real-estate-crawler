@@ -6,9 +6,7 @@ def parse_detail_page_location_fields(html: str) -> dict:
 
     soup = BeautifulSoup(html or "", "lxml")
     title = (
-        clean_text(
-            soup.select_one(".re__pr-title, .js__pr-title").get_text(" ", strip=True)
-        )
+        clean_text(soup.select_one(".re__pr-title, .js__pr-title").get_text(" ", strip=True))
         if soup.select_one(".re__pr-title, .js__pr-title")
         else None
     )
@@ -18,11 +16,7 @@ def parse_detail_page_location_fields(html: str) -> dict:
         else None
     )
     breadcrumb = (
-        clean_text(
-            soup.select_one(".re__breadcrumb, .js__breadcrumb").get_text(
-                " ", strip=True
-            )
-        )
+        clean_text(soup.select_one(".re__breadcrumb, .js__breadcrumb").get_text(" ", strip=True))
         if soup.select_one(".re__breadcrumb, .js__breadcrumb")
         else None
     )

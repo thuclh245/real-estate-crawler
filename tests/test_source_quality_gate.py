@@ -65,9 +65,7 @@ class SourceQualityGateTest(unittest.TestCase):
         )
 
         self.assertEqual(decision.status, "fail")
-        self.assertTrue(
-            any("parse_success_rate" in failure for failure in decision.failures)
-        )
+        self.assertTrue(any("parse_success_rate" in failure for failure in decision.failures))
 
     def test_gate_fails_when_blocked_rate_is_too_high(self):
         decision = evaluate_source_quality_gate(
@@ -98,13 +96,9 @@ class SourceQualityGateTest(unittest.TestCase):
         )
 
         self.assertEqual(decision.status, "fail")
-        self.assertTrue(
-            any("missing_price_rate" in failure for failure in decision.failures)
-        )
+        self.assertTrue(any("missing_price_rate" in failure for failure in decision.failures))
         self.assertTrue(any("duplicate_rate" in failure for failure in decision.failures))
-        self.assertTrue(
-            any("quarantine_rate" in failure for failure in decision.failures)
-        )
+        self.assertTrue(any("quarantine_rate" in failure for failure in decision.failures))
 
 
 if __name__ == "__main__":

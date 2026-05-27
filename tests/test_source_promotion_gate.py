@@ -15,9 +15,7 @@ from validation.source_promotion_gate import evaluate_source_promotion_gate
 class SourcePromotionGateTest(unittest.TestCase):
     def setUp(self):
         self.nhatot_config = yaml.safe_load(
-            (ROOT / "configs" / "sources" / "nhatot.yaml").read_text(
-                encoding="utf-8"
-            )
+            (ROOT / "configs" / "sources" / "nhatot.yaml").read_text(encoding="utf-8")
         )
         self.passing_scorecard = {
             "source_code": "nhatot",

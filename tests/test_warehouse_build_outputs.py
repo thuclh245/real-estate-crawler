@@ -169,15 +169,11 @@ class WarehouseBuildOutputsTest(unittest.TestCase):
             self.assertTrue((warehouse / "fact_listing_snapshot").exists())
             self.assertTrue((warehouse / "warehouse_summary.json").exists())
 
-            dim_source_df = pd.read_parquet(
-                warehouse / "dim_source" / "part-0000.parquet"
-            )
+            dim_source_df = pd.read_parquet(warehouse / "dim_source" / "part-0000.parquet")
             self.assertIn("source_key", dim_source_df.columns)
             self.assertGreaterEqual(len(dim_source_df), 3)
 
-            fact_df = pd.read_parquet(
-                warehouse / "fact_listing_snapshot" / "part-0000.parquet"
-            )
+            fact_df = pd.read_parquet(warehouse / "fact_listing_snapshot" / "part-0000.parquet")
             self.assertEqual(len(fact_df), 3)
             self.assertEqual(
                 fact_df.drop_duplicates(
@@ -190,9 +186,7 @@ class WarehouseBuildOutputsTest(unittest.TestCase):
             check_warehouse_tables(warehouse, gold)
 
             self.assertIn("fact_listing_snapshot", result.summary["table_row_counts"])
-            self.assertEqual(
-                result.summary["table_row_counts"]["fact_listing_snapshot"], 3
-            )
+            self.assertEqual(result.summary["table_row_counts"]["fact_listing_snapshot"], 3)
             self.assertIs(orchestrated_build, build_warehouse_outputs)
         finally:
             shutil.rmtree(tmp, ignore_errors=True)

@@ -111,9 +111,7 @@ class SourcesToSilverPipelineTest(unittest.TestCase):
 
     def _write_nhatot_config(self) -> Path:
         config = yaml.safe_load(
-            (ROOT / "configs" / "sources" / "nhatot.yaml").read_text(
-                encoding="utf-8"
-            )
+            (ROOT / "configs" / "sources" / "nhatot.yaml").read_text(encoding="utf-8")
         )
         config["crawl"]["request_delay_seconds"] = 0
         config["crawl"]["max_listings_per_target"] = 1
@@ -134,9 +132,7 @@ class SourcesToSilverPipelineTest(unittest.TestCase):
 
     def _write_blocked_nhatot_config(self) -> Path:
         config = yaml.safe_load(
-            (ROOT / "configs" / "sources" / "nhatot_house_150.yaml").read_text(
-                encoding="utf-8"
-            )
+            (ROOT / "configs" / "sources" / "nhatot_house_150.yaml").read_text(encoding="utf-8")
         )
         config["crawl"]["request_delay_seconds"] = 0
         config["crawl"]["max_listings_per_target"] = 1
@@ -184,9 +180,7 @@ class SourcesToSilverPipelineTest(unittest.TestCase):
         self.assertEqual(nhatot_row["district_norm"], "Cau Giay")
 
         scorecard = json.loads(
-            Path(runs_by_source["nhatot"]["source_scorecard_path"]).read_text(
-                encoding="utf-8"
-            )
+            Path(runs_by_source["nhatot"]["source_scorecard_path"]).read_text(encoding="utf-8")
         )
         self.assertEqual(scorecard["source_code"], "nhatot")
         self.assertEqual(scorecard["gate_status"], "pass")
@@ -207,9 +201,7 @@ class SourcesToSilverPipelineTest(unittest.TestCase):
         self.assertEqual(run["silver_validation"]["row_count"], 0)
         self.assertFalse((Path(run["silver_dir"]) / "listings.parquet").exists())
 
-        scorecard = json.loads(
-            Path(run["source_scorecard_path"]).read_text(encoding="utf-8")
-        )
+        scorecard = json.loads(Path(run["source_scorecard_path"]).read_text(encoding="utf-8"))
         self.assertEqual(scorecard["source_code"], "nhatot")
         self.assertEqual(scorecard["total_records"], 0)
         self.assertEqual(scorecard["parse_success_rate"], 0.0)

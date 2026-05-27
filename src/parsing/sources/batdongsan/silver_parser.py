@@ -41,9 +41,7 @@ def extract_title(raw_text: str, metadata: Dict[str, Any]) -> Optional[str]:
 
     # Heuristic đơn giản: title thường nằm ở những dòng đầu
     for line in lines[:20]:
-        if len(line) >= 15 and not line.lower().startswith(
-            ("mức giá", "diện tích", "địa chỉ")
-        ):
+        if len(line) >= 15 and not line.lower().startswith(("mức giá", "diện tích", "địa chỉ")):
             return clean_text(line)
 
     return None
@@ -87,9 +85,7 @@ def extract_price_raw(raw_text: str, metadata: Dict[str, Any]) -> Optional[str]:
                     return clean_text(next_line)
 
         if line_lower.startswith("khoảng giá ") or line_lower.startswith("mức giá "):
-            value = re.sub(
-                r"^(khoảng giá|mức giá)\s*", "", line, flags=re.IGNORECASE
-            ).strip()
+            value = re.sub(r"^(khoảng giá|mức giá)\s*", "", line, flags=re.IGNORECASE).strip()
             if value:
                 return clean_text(value)
 
@@ -146,9 +142,7 @@ def extract_area_raw(raw_text: str, metadata: Dict[str, Any]) -> Optional[str]:
 
         if line_lower in ["diện tích", "dien tich"]:
             for next_line in lines[i + 1 : i + 4]:
-                match = re.search(
-                    r"(\d+(?:[.,]\d+)?\s*m(?:²|2)?)", next_line, flags=re.IGNORECASE
-                )
+                match = re.search(r"(\d+(?:[.,]\d+)?\s*m(?:²|2)?)", next_line, flags=re.IGNORECASE)
                 if match:
                     return clean_text(match.group(1))
 
@@ -175,9 +169,7 @@ def extract_area_raw(raw_text: str, metadata: Dict[str, Any]) -> Optional[str]:
     return None
 
 
-def extract_location_raw(
-    raw_text: str, metadata: Dict[str, Any]
-) -> tuple[Optional[str], str, str]:
+def extract_location_raw(raw_text: str, metadata: Dict[str, Any]) -> tuple[Optional[str], str, str]:
     """
     Lấy location raw.
 
@@ -215,9 +207,7 @@ def extract_location_raw(
     return None, "unknown", "unknown"
 
 
-def normalize_location_simple(
-    location_raw: Optional[str], metadata: Dict[str, Any]
-) -> dict:
+def normalize_location_simple(location_raw: Optional[str], metadata: Dict[str, Any]) -> dict:
     """
     Chuẩn hóa location bản đơn giản.
     Phase 2 bản đầu chưa cần quá phức tạp.
@@ -344,9 +334,9 @@ def parse_listing(
     location_info = normalize_location_simple(location_raw, metadata)
 
     crawl_category = metadata.get("crawl_category")
-    property_type_group = metadata.get(
-        "property_type_group"
-    ) or normalize_property_type(category=crawl_category, title=title_raw)
+    property_type_group = metadata.get("property_type_group") or normalize_property_type(
+        category=crawl_category, title=title_raw
+    )
 
     record = {
         # Identity / lineage

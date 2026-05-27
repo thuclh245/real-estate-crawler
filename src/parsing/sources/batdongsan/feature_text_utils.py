@@ -31,12 +31,7 @@ def normalize_text(text: str | None) -> str:
     value = unicodedata.normalize("NFD", value)
     value = "".join(char for char in value if unicodedata.category(char) != "Mn")
     value = value.replace("đ", "d").replace("Đ", "d")
-    value = (
-        value.replace("²", "2")
-        .replace("³", "3")
-        .replace("㎡", "m2")
-        .replace("㎥", "m3")
-    )
+    value = value.replace("²", "2").replace("³", "3").replace("㎡", "m2").replace("㎥", "m3")
     value = re.sub(r"\s+", " ", value)
     return value.strip()
 

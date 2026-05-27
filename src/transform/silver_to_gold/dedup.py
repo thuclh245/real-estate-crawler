@@ -43,24 +43,18 @@ def add_dedup_key(df):
 
     if "district_norm" in df.columns:
         fallback_string_parts.append(
-            F.lower(
-                F.trim(F.coalesce(F.col("district_norm").cast("string"), F.lit("")))
-            )
+            F.lower(F.trim(F.coalesce(F.col("district_norm").cast("string"), F.lit(""))))
         )
     else:
         fallback_string_parts.append(F.lit(""))
 
     if "area_m2" in df.columns:
-        fallback_string_parts.append(
-            F.coalesce(F.col("area_m2").cast("string"), F.lit(""))
-        )
+        fallback_string_parts.append(F.coalesce(F.col("area_m2").cast("string"), F.lit("")))
     else:
         fallback_string_parts.append(F.lit(""))
 
     if "price_vnd" in df.columns:
-        fallback_string_parts.append(
-            F.coalesce(F.col("price_vnd").cast("string"), F.lit(""))
-        )
+        fallback_string_parts.append(F.coalesce(F.col("price_vnd").cast("string"), F.lit("")))
     else:
         fallback_string_parts.append(F.lit(""))
 
@@ -101,9 +95,7 @@ def add_dedup_key(df):
     df = df.withColumn(had_existing_key_col, F.length(F.col(existing_key_col)) > 0)
     df = df.withColumn(
         "dedup_key",
-        F.when(F.col(had_existing_key_col), F.col(existing_key_col)).otherwise(
-            dedup_key_expr
-        ),
+        F.when(F.col(had_existing_key_col), F.col(existing_key_col)).otherwise(dedup_key_expr),
     )
 
     if "dedup_method" in df.columns:
@@ -115,13 +107,11 @@ def add_dedup_key(df):
             .otherwise(dedup_method_expr)
         )
     else:
-        dedup_method = F.when(
-            F.col(had_existing_key_col), F.lit("preexisting")
-        ).otherwise(dedup_method_expr)
+        dedup_method = F.when(F.col(had_existing_key_col), F.lit("preexisting")).otherwise(
+            dedup_method_expr
+        )
 
-    return df.withColumn("dedup_method", dedup_method).drop(
-        existing_key_col, had_existing_key_col
-    )
+    return df.withColumn("dedup_method", dedup_method).drop(existing_key_col, had_existing_key_col)
 
 
 def add_duplicate_flags(df):

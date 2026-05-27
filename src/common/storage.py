@@ -15,10 +15,7 @@ def save_text_file(path: str | Path, content: str):
 def save_json_file(path: str | Path, data: dict):
     path = Path(path)
     ensure_dir(path.parent)
-    path.write_text(
-        json.dumps(data, ensure_ascii=False, indent=2),
-        encoding="utf-8"
-    )
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def append_jsonl(path: str | Path, record: dict):

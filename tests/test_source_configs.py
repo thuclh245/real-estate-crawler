@@ -135,9 +135,7 @@ class SourceConfigsTest(unittest.TestCase):
     def test_metadata_catalog_points_to_nhatot_source_config(self):
         catalog_path = ROOT / "configs" / "metadata" / "table_catalog.json"
         catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
-        source_by_code = {
-            source["source_code"]: source for source in catalog["source_systems"]
-        }
+        source_by_code = {source["source_code"]: source for source in catalog["source_systems"]}
 
         self.assertIn("nhatot", source_by_code)
         nhatot = source_by_code["nhatot"]
@@ -214,9 +212,7 @@ class SourceConfigsTest(unittest.TestCase):
         )
         self.assertEqual(nhatot["quality"]["min_expected_records"], 800)
 
-        deprecated_nhatot = yaml.safe_load(
-            deprecated_nhatot_path.read_text(encoding="utf-8")
-        )
+        deprecated_nhatot = yaml.safe_load(deprecated_nhatot_path.read_text(encoding="utf-8"))
         self.assertIs(deprecated_nhatot["compatibility"]["production_enabled"], False)
         self.assertEqual(deprecated_nhatot["promotion"]["promotion_status"], "blocked")
         self.assertIs(deprecated_nhatot["promotion"]["production_candidate"], False)

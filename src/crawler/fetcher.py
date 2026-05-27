@@ -35,6 +35,7 @@ def fetch_with_retry(
     # 1. Intercept cache for Nhatot detail pages to completely bypass detail network calls
     try:
         from crawler.sources.nhatot.adapter import IN_MEMORY_AD_CACHE
+
         if url in IN_MEMORY_AD_CACHE:
             return 200, IN_MEMORY_AD_CACHE[url], url, 0, None
     except ImportError:
@@ -44,6 +45,7 @@ def fetch_with_retry(
     if "nhatot.com" in url and "detail-mock" not in url and ".htm" not in url:
         try:
             from crawler.sources.nhatot.adapter import DISTRICT_MAPPING, CATEGORY_MAPPING
+
             page = 1
             parsed = urlsplit(url)
             query_page = parse_qs(parsed.query).get("page", [None])[-1]
@@ -116,10 +118,12 @@ def fetch_html_requests(url: str) -> tuple[int, str, str]:
         "Pragma": "no-cache",
         "Upgrade-Insecure-Requests": "1",
     }
-    
+
     # Inject high-performance mobile headers for Chotot/Nhatot gateway API compatibility
     if "chotot.com" in url or "nhatot.com" in url:
-        headers["User-Agent"] = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Chotot/4.5.0"
+        headers["User-Agent"] = (
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Chotot/4.5.0"
+        )
         headers["X-Chotot-Platform"] = "IOS"
         headers["X-Chotot-Region"] = "VN"
         headers["Accept"] = "application/json, text/plain, */*"

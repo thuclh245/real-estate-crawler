@@ -46,8 +46,8 @@ def _load_source_key_map() -> dict[str, int]:
         if not line or ":" not in line:
             continue
         key, value = line.split(":", 1)
-        key = key.strip().strip('"\'')
-        value = value.strip().strip('"\'')
+        key = key.strip().strip("\"'")
+        value = value.strip().strip("\"'")
         if not key or not value:
             continue
         try:
@@ -91,7 +91,10 @@ def _slugify(value: object) -> str:
 
 
 def _hash_key(*parts: object) -> str:
-    normalized = [str(part).strip().lower() if part is not None and not pd.isna(part) else "NONE" for part in parts]
+    normalized = [
+        str(part).strip().lower() if part is not None and not pd.isna(part) else "NONE"
+        for part in parts
+    ]
     payload = "|".join(normalized)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
 
@@ -106,7 +109,9 @@ def _date_key(series: pd.Series) -> pd.Series:
     return parsed.dt.strftime("%Y%m%d").astype("Int64")
 
 
-def _read_parquet_table(base_path: Path, table_name: str, required: bool = True) -> pd.DataFrame | None:
+def _read_parquet_table(
+    base_path: Path, table_name: str, required: bool = True
+) -> pd.DataFrame | None:
     table_path = base_path / table_name
     if not table_path.exists():
         if required:
@@ -223,7 +228,11 @@ def build_dim_source(snapshot_df: pd.DataFrame, quality_df: pd.DataFrame) -> pd.
                 "source_key": _source_key(source_code),
                 "source_code": source_code,
                 "source_name": source_code.replace("_", " ").title(),
-                "source_domain": "batdongsan.com.vn" if source_code == "batdongsan" else "nhatot.com" if source_code == "nhatot" else None,
+                "source_domain": "batdongsan.com.vn"
+                if source_code == "batdongsan"
+                else "nhatot.com"
+                if source_code == "nhatot"
+                else None,
                 "source_type": "website",
                 "is_active": source_code in {"batdongsan", "nhatot"},
                 "first_onboarded_at": None,
@@ -274,7 +283,9 @@ def build_dim_property_type(snapshot_df: pd.DataFrame) -> pd.DataFrame:
 
         rows.append(
             {
-                "property_type_key": _hash_key(business_type, group) if group != "unknown" else UNKNOWN_PROPERTY_TYPE_KEY,
+                "property_type_key": _hash_key(business_type, group)
+                if group != "unknown"
+                else UNKNOWN_PROPERTY_TYPE_KEY,
                 "business_type": business_type,
                 "property_type_group": group,
                 "property_type_code": group,
@@ -285,13 +296,21 @@ def build_dim_property_type(snapshot_df: pd.DataFrame) -> pd.DataFrame:
             }
         )
 
-    frame = pd.DataFrame(rows).drop_duplicates(subset=["property_type_key"]).sort_values("property_type_key")
+    frame = (
+        pd.DataFrame(rows)
+        .drop_duplicates(subset=["property_type_key"])
+        .sort_values("property_type_key")
+    )
     return frame.reset_index(drop=True)
 
 
 def build_dim_location_basic(snapshot_df: pd.DataFrame) -> pd.DataFrame:
-    city_series = _first_nonempty_text(snapshot_df, ["city_norm", "province_norm", "city", "city_name"])
-    district_series = _first_nonempty_text(snapshot_df, ["district_norm", "district", "district_name"])
+    city_series = _first_nonempty_text(
+        snapshot_df, ["city_norm", "province_norm", "city", "city_name"]
+    )
+    district_series = _first_nonempty_text(
+        snapshot_df, ["district_norm", "district", "district_name"]
+    )
     ward_series = _first_nonempty_text(snapshot_df, ["ward_norm", "ward", "ward_name"])
 
     rows = []
@@ -395,8 +414,20 @@ def build_dim_listing(snapshot_df: pd.DataFrame) -> pd.DataFrame:
                 "source_listing_id": listing_id,
                 "source_listing_url": listing_url,
                 "dedup_key": row.get("dedup_key"),
-                "first_seen_date_key": int(_date_key(pd.Series([row.get("snapshot_date") or row.get("crawl_date")])).iloc[0]) if pd.notna(row.get("snapshot_date") or row.get("crawl_date")) else None,
-                "last_seen_date_key": int(_date_key(pd.Series([row.get("snapshot_date") or row.get("crawl_date")])).iloc[0]) if pd.notna(row.get("snapshot_date") or row.get("crawl_date")) else None,
+                "first_seen_date_key": int(
+                    _date_key(pd.Series([row.get("snapshot_date") or row.get("crawl_date")])).iloc[
+                        0
+                    ]
+                )
+                if pd.notna(row.get("snapshot_date") or row.get("crawl_date"))
+                else None,
+                "last_seen_date_key": int(
+                    _date_key(pd.Series([row.get("snapshot_date") or row.get("crawl_date")])).iloc[
+                        0
+                    ]
+                )
+                if pd.notna(row.get("snapshot_date") or row.get("crawl_date"))
+                else None,
                 "listing_identity_method": method,
             }
         )
@@ -443,20 +474,37 @@ def build_fact_listing_snapshot(snapshot_df: pd.DataFrame) -> pd.DataFrame:
         if not source_code or not identity_value:
             continue
 
-        city_name = _normalize_text(row.get("city_norm") or row.get("province_norm") or row.get("city") or row.get("city_name"), "")
-        district_name = _normalize_text(row.get("district_norm") or row.get("district") or row.get("district_name"), "")
-        ward_name = _normalize_text(row.get("ward_norm") or row.get("ward") or row.get("ward_name"), "")
+        city_name = _normalize_text(
+            row.get("city_norm")
+            or row.get("province_norm")
+            or row.get("city")
+            or row.get("city_name"),
+            "",
+        )
+        district_name = _normalize_text(
+            row.get("district_norm") or row.get("district") or row.get("district_name"), ""
+        )
+        ward_name = _normalize_text(
+            row.get("ward_norm") or row.get("ward") or row.get("ward_name"), ""
+        )
         if city_name or district_name or ward_name:
             if city_name and district_name and ward_name:
-                location_key = _hash_key("VN", _slugify(city_name), _slugify(district_name), _slugify(ward_name))
+                location_key = _hash_key(
+                    "VN", _slugify(city_name), _slugify(district_name), _slugify(ward_name)
+                )
             elif city_name or district_name or ward_name:
-                location_key = _hash_key("VN", _slugify(city_name), _slugify(district_name), _slugify(ward_name))
+                location_key = _hash_key(
+                    "VN", _slugify(city_name), _slugify(district_name), _slugify(ward_name)
+                )
             else:
                 location_key = UNKNOWN_LOCATION_KEY
         else:
             location_key = UNKNOWN_LOCATION_KEY
 
-        property_type_group = _normalize_text(row.get("property_type_group") or row.get("property_type") or row.get("crawl_category"), "unknown")
+        property_type_group = _normalize_text(
+            row.get("property_type_group") or row.get("property_type") or row.get("crawl_category"),
+            "unknown",
+        )
         if property_type_group == "unknown":
             property_type_key = UNKNOWN_PROPERTY_TYPE_KEY
         else:
@@ -472,7 +520,13 @@ def build_fact_listing_snapshot(snapshot_df: pd.DataFrame) -> pd.DataFrame:
 
         rows.append(
             {
-                "snapshot_date_key": int(_date_key(pd.Series([row.get("snapshot_date") or row.get("crawl_date")])).iloc[0]) if pd.notna(row.get("snapshot_date") or row.get("crawl_date")) else None,
+                "snapshot_date_key": int(
+                    _date_key(pd.Series([row.get("snapshot_date") or row.get("crawl_date")])).iloc[
+                        0
+                    ]
+                )
+                if pd.notna(row.get("snapshot_date") or row.get("crawl_date"))
+                else None,
                 "source_key": _source_key(source_code),
                 "listing_key": _hash_key(source_code, identity_value),
                 "location_key": location_key,
@@ -492,14 +546,24 @@ def build_fact_listing_snapshot(snapshot_df: pd.DataFrame) -> pd.DataFrame:
                 "is_info_changed": bool(row.get("is_info_changed", False)),
                 "price_change_vnd": row.get("price_change_vnd"),
                 "price_change_pct": row.get("price_change_pct"),
-                "has_legal_info": bool(row.get("has_legal_info", False)) if pd.notna(row.get("has_legal_info")) else False,
-                "has_car_access": bool(row.get("has_car_access", False)) if pd.notna(row.get("has_car_access")) else False,
-                "is_price_negotiable": bool(row.get("is_price_negotiable", False)) if pd.notna(row.get("is_price_negotiable")) else False,
+                "has_legal_info": bool(row.get("has_legal_info", False))
+                if pd.notna(row.get("has_legal_info"))
+                else False,
+                "has_car_access": bool(row.get("has_car_access", False))
+                if pd.notna(row.get("has_car_access"))
+                else False,
+                "is_price_negotiable": bool(row.get("is_price_negotiable", False))
+                if pd.notna(row.get("is_price_negotiable"))
+                else False,
             }
         )
 
-    frame = pd.DataFrame(rows).drop_duplicates(subset=["snapshot_date_key", "source_key", "listing_key"])
-    return frame.sort_values(["snapshot_date_key", "source_key", "listing_key"]).reset_index(drop=True)
+    frame = pd.DataFrame(rows).drop_duplicates(
+        subset=["snapshot_date_key", "source_key", "listing_key"]
+    )
+    return frame.sort_values(["snapshot_date_key", "source_key", "listing_key"]).reset_index(
+        drop=True
+    )
 
 
 def build_fact_data_quality_daily(quality_df: pd.DataFrame) -> pd.DataFrame:
@@ -510,7 +574,9 @@ def build_fact_data_quality_daily(quality_df: pd.DataFrame) -> pd.DataFrame:
             continue
         rows.append(
             {
-                "crawl_date_key": int(_date_key(pd.Series([row.get("crawl_date")])).iloc[0]) if pd.notna(row.get("crawl_date")) else None,
+                "crawl_date_key": int(_date_key(pd.Series([row.get("crawl_date")])).iloc[0])
+                if pd.notna(row.get("crawl_date"))
+                else None,
                 "source_key": _source_key(source_code),
                 "total_records": row.get("total_records", 0),
                 "parse_success_count": row.get("parse_success_count", 0),
@@ -524,7 +590,9 @@ def build_fact_data_quality_daily(quality_df: pd.DataFrame) -> pd.DataFrame:
                 "missing_location_count": row.get("missing_location_count", 0),
                 "missing_location_rate": row.get("missing_location_rate", 0.0),
                 "quarantine_count": row.get("quarantine_count", 0),
-                "publish_blocked_flag": bool(row.get("publish_blocked_flag", False)) if pd.notna(row.get("publish_blocked_flag")) else False,
+                "publish_blocked_flag": bool(row.get("publish_blocked_flag", False))
+                if pd.notna(row.get("publish_blocked_flag"))
+                else False,
             }
         )
 
@@ -541,7 +609,12 @@ def _write_summary(
     quality_df: pd.DataFrame,
 ) -> tuple[Path, dict[str, Any]]:
     snapshot_dates = (
-        pd.to_datetime(snapshot_df[[column for column in ["snapshot_date"] if column in snapshot_df.columns]].stack(), errors="coerce")
+        pd.to_datetime(
+            snapshot_df[
+                [column for column in ["snapshot_date"] if column in snapshot_df.columns]
+            ].stack(),
+            errors="coerce",
+        )
         .dropna()
         .dt.strftime("%Y-%m-%d")
         .drop_duplicates()
@@ -551,7 +624,12 @@ def _write_summary(
         else []
     )
     crawl_dates = (
-        pd.to_datetime(quality_df[[column for column in ["crawl_date"] if column in quality_df.columns]].stack(), errors="coerce")
+        pd.to_datetime(
+            quality_df[
+                [column for column in ["crawl_date"] if column in quality_df.columns]
+            ].stack(),
+            errors="coerce",
+        )
         .dropna()
         .dt.strftime("%Y-%m-%d")
         .drop_duplicates()
@@ -561,7 +639,19 @@ def _write_summary(
         else []
     )
     source_codes = sorted(
-        { _normalize_text(value) for value in pd.concat([snapshot_df.get("source_code", snapshot_df.get("source")), quality_df.get("source_code", quality_df.get("source"))], ignore_index=True).dropna().tolist() if _normalize_text(value) }
+        {
+            _normalize_text(value)
+            for value in pd.concat(
+                [
+                    snapshot_df.get("source_code", snapshot_df.get("source")),
+                    quality_df.get("source_code", quality_df.get("source")),
+                ],
+                ignore_index=True,
+            )
+            .dropna()
+            .tolist()
+            if _normalize_text(value)
+        }
     )
     if "unknown" not in source_codes:
         source_codes = ["unknown"] + source_codes
@@ -578,7 +668,9 @@ def _write_summary(
 
     summary_path = warehouse_base_path / "warehouse_summary.json"
     summary_path.parent.mkdir(parents=True, exist_ok=True)
-    summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    summary_path.write_text(
+        json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
     return summary_path, summary
 
 
@@ -590,9 +682,13 @@ def build_warehouse_outputs(
     gold_base_path = Path(gold_base_path)
     warehouse_base_path = Path(warehouse_base_path)
 
-    listing_snapshot_df = _read_parquet_table(gold_base_path, "gold_listing_snapshots", required=False)
+    listing_snapshot_df = _read_parquet_table(
+        gold_base_path, "gold_listing_snapshots", required=False
+    )
     if listing_snapshot_df is None:
-        listing_snapshot_df = _read_parquet_table(gold_base_path, "gold_current_listings", required=True)
+        listing_snapshot_df = _read_parquet_table(
+            gold_base_path, "gold_current_listings", required=True
+        )
 
     quality_df = _read_parquet_table(gold_base_path, "gold_data_quality_daily", required=True)
 

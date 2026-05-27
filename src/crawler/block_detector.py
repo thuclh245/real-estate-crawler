@@ -3,11 +3,14 @@ def is_blocked_page(
     html: str,
     listing_urls_found: int | None = None,
 ) -> bool:
-    return detect_block_reason(
-        http_status,
-        html,
-        listing_urls_found=listing_urls_found,
-    ) is not None
+    return (
+        detect_block_reason(
+            http_status,
+            html,
+            listing_urls_found=listing_urls_found,
+        )
+        is not None
+    )
 
 
 def detect_block_reason(

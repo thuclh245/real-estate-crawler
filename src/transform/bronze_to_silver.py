@@ -25,9 +25,7 @@ def read_text_file(path_value: str) -> str:
     return path.read_text(encoding="utf-8", errors="ignore")
 
 
-def run_bronze_to_silver(
-    bronze_dir: str, silver_dir: str, parser_version: str = "phase2_v1"
-):
+def run_bronze_to_silver(bronze_dir: str, silver_dir: str, parser_version: str = "phase2_v1"):
     bronze_path = Path(bronze_dir)
     silver_path = Path(silver_dir)
 
@@ -74,20 +72,14 @@ def run_bronze_to_silver(
                         or metadata.get("listing_url")
                         or metadata_file.stem
                     ),
-                    error_message=str(
-                        record.get("parse_error_message") or "parse failed"
-                    ),
+                    error_message=str(record.get("parse_error_message") or "parse failed"),
                     parser_version=parser_version,
                     raw_reference_path=str(
                         metadata.get("raw_text_path")
                         or metadata.get("raw_html_path")
                         or metadata_file
                     ),
-                    extra={
-                        "metadata_path": str(
-                            metadata.get("metadata_path") or metadata_file
-                        )
-                    },
+                    extra={"metadata_path": str(metadata.get("metadata_path") or metadata_file)},
                 )
                 quarantine_path = append_quarantine_record(
                     quarantine_record,
@@ -113,9 +105,7 @@ def run_bronze_to_silver(
         df.to_csv(silver_path / "listings.csv", index=False, encoding="utf-8-sig")
 
     error_df = pd.DataFrame(errors)
-    error_df.to_csv(
-        silver_path / "parse_error_log.csv", index=False, encoding="utf-8-sig"
-    )
+    error_df.to_csv(silver_path / "parse_error_log.csv", index=False, encoding="utf-8-sig")
 
     summary = {
         "bronze_dir": str(bronze_path),
@@ -124,9 +114,7 @@ def run_bronze_to_silver(
         "total_records_parsed": len(records),
         "total_parse_errors": len(errors),
         "total_quarantined_records": len(quarantined),
-        "parse_success_rate": (
-            len(records) / len(metadata_files) if metadata_files else 0
-        ),
+        "parse_success_rate": (len(records) / len(metadata_files) if metadata_files else 0),
         "parser_version": parser_version,
         "processed_at": now_utc_iso(),
     }
@@ -154,13 +142,9 @@ def run_bronze_to_silver(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
-    parser.add_argument(
-        "--bronze-dir", required=True, help="Path to Bronze crawl_date folder"
-    )
+    parser.add_argument("--bronze-dir", required=True, help="Path to Bronze crawl_date folder")
 
-    parser.add_argument(
-        "--silver-dir", required=True, help="Path to output Silver folder"
-    )
+    parser.add_argument("--silver-dir", required=True, help="Path to output Silver folder")
 
     parser.add_argument("--parser-version", default="phase2_v1", help="Parser version")
 

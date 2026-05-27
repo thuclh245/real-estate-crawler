@@ -30,7 +30,7 @@ def build_removed_listings(daily_deduped_df):
     # Ánh xạ ngày hiện tại -> ngày crawl kế tiếp
     mapping = {}
     for i in range(len(sorted_dates) - 1):
-        mapping[sorted_dates[i]] = sorted_dates[i+1]
+        mapping[sorted_dates[i]] = sorted_dates[i + 1]
 
     # Xây dựng cột next_crawl_date bằng biểu thức F.when (tránh Window & Join đắt đỏ)
     expr = F.when(F.col("crawl_date") == sorted_dates[0], F.lit(mapping[sorted_dates[0]]))
@@ -42,14 +42,12 @@ def build_removed_listings(daily_deduped_df):
         F.col("next_crawl_date").isNotNull()
     )
 
-    next_presence = daily_deduped_df.select(
-        "dedup_key", "crawl_date"
-    ).withColumnRenamed("crawl_date", "next_crawl_date")
+    next_presence = daily_deduped_df.select("dedup_key", "crawl_date").withColumnRenamed(
+        "crawl_date", "next_crawl_date"
+    )
 
     removed_df = (
-        prev_with_next.join(
-            next_presence, on=["dedup_key", "next_crawl_date"], how="left_anti"
-        )
+        prev_with_next.join(next_presence, on=["dedup_key", "next_crawl_date"], how="left_anti")
         .withColumn("snapshot_date", F.col("next_crawl_date"))
         .withColumn("last_seen_before_removed", F.col("crawl_date"))
         .withColumn("snapshot_status", F.lit("removed"))

@@ -30,9 +30,9 @@ from transform.bronze_to_silver import run_bronze_to_silver
 LIST_PAGE_HTML = (ROOT / "tests" / "fixtures" / "nhatot" / "list_page_sample.html").read_text(
     encoding="utf-8"
 )
-DETAIL_PAGE_HTML = (
-    ROOT / "tests" / "fixtures" / "nhatot" / "detail_page_sample.html"
-).read_text(encoding="utf-8")
+DETAIL_PAGE_HTML = (ROOT / "tests" / "fixtures" / "nhatot" / "detail_page_sample.html").read_text(
+    encoding="utf-8"
+)
 API_LIST_PAGE_JSON = (
     ROOT / "tests" / "fixtures" / "nhatot" / "api_list_page_sample.json"
 ).read_text(encoding="utf-8")

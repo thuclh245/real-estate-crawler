@@ -53,17 +53,13 @@ def main():
     print("=== DUPLICATE SUMMARY ===")
     silver_df.groupBy("crawl_date").agg(
         F.count("*").alias("total_records"),
-        F.sum(F.when(F.col("is_duplicate_in_snapshot"), 1).otherwise(0)).alias(
-            "duplicate_records"
-        ),
+        F.sum(F.when(F.col("is_duplicate_in_snapshot"), 1).otherwise(0)).alias("duplicate_records"),
         F.countDistinct("dedup_key").alias("distinct_dedup_keys"),
     ).orderBy("crawl_date").show(truncate=False)
 
     print("=== DAILY DEDUP ===")
     daily_deduped_df = dedup_daily(silver_df)
-    daily_deduped_df.groupBy("crawl_date").count().orderBy("crawl_date").show(
-        truncate=False
-    )
+    daily_deduped_df.groupBy("crawl_date").count().orderBy("crawl_date").show(truncate=False)
 
     print("=== BUILD LIFECYCLE ===")
     lifecycle_df = build_listing_lifecycle(daily_deduped_df)
@@ -88,15 +84,13 @@ def main():
     print("=== PRICE CHANGE COUNT ===")
     snapshot_df.groupBy("snapshot_date").agg(
         F.count("*").alias("snapshot_records"),
-        F.sum(F.when(F.col("is_price_changed"), 1).otherwise(0)).alias(
-            "price_changed_count"
-        ),
+        F.sum(F.when(F.col("is_price_changed"), 1).otherwise(0)).alias("price_changed_count"),
     ).orderBy("snapshot_date").show(truncate=False)
 
     print("=== REMOVED COUNT ===")
-    removed_df.groupBy("snapshot_date", "snapshot_status").count().orderBy(
-        "snapshot_date"
-    ).show(truncate=False)
+    removed_df.groupBy("snapshot_date", "snapshot_status").count().orderBy("snapshot_date").show(
+        truncate=False
+    )
 
     print("=== BUILD GOLD TABLES ===")
     gold_current_df = build_gold_current_listings(snapshot_df)

@@ -23,9 +23,7 @@ class SourceAcceptanceTest(unittest.TestCase):
     def setUp(self):
         self.base_dir = ROOT / "tests" / "tmp_runtime" / "source_acceptance" / uuid4().hex
         self.source_config = yaml.safe_load(
-            (ROOT / "configs" / "sources" / "nhatot.yaml").read_text(
-                encoding="utf-8"
-            )
+            (ROOT / "configs" / "sources" / "nhatot.yaml").read_text(encoding="utf-8")
         )
         self.source_config["compatibility"]["production_scope"] = "silver_only"
         self.scorecard = {
@@ -93,10 +91,7 @@ class SourceAcceptanceTest(unittest.TestCase):
         path = write_source_acceptance_pack(acceptance, self.base_dir)
 
         expected_path = (
-            self.base_dir
-            / "source_acceptance"
-            / "source=nhatot"
-            / "source_acceptance.json"
+            self.base_dir / "source_acceptance" / "source=nhatot" / "source_acceptance.json"
         )
         self.assertEqual(path, expected_path)
         self.assertTrue(path.exists())

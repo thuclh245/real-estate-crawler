@@ -71,18 +71,16 @@ ghi audit_sample_csv
 
 @dataclass
 class CrawlDependencies:
-    fetch_with_retry_fn: Callable[
-        ..., tuple[int | None, str, str | None, int, str | None]
-    ] = fetch_with_retry
+    fetch_with_retry_fn: Callable[..., tuple[int | None, str, str | None, int, str | None]] = (
+        fetch_with_retry
+    )
     source_adapter: SourceAdapter = field(default_factory=BatdongsanAdapter)
 
 
 def seed_url_for_page(seed_url: str, page_number: int) -> str:
     parsed = urlsplit(seed_url)
     query_pairs = parse_qsl(parsed.query, keep_blank_values=True)
-    page_indexes = [
-        idx for idx, (key, _value) in enumerate(query_pairs) if key == "page"
-    ]
+    page_indexes = [idx for idx, (key, _value) in enumerate(query_pairs) if key == "page"]
     if page_number <= 1 and not page_indexes:
         return seed_url
     if not page_indexes:
@@ -182,9 +180,7 @@ class CrawlOrchestrator:
         known_location_labels = sorted(
             {
                 label
-                for label in (
-                    get_target_location_label(target) for target in expanded_targets
-                )
+                for label in (get_target_location_label(target) for target in expanded_targets)
                 if label
             }
         )
@@ -239,7 +235,6 @@ class CrawlOrchestrator:
                 ]
 
             for page_number, page_url in enumerate(target_page_urls, start=1):
-
                 summary["total_listing_pages_requested"] += 1
 
                 try:
@@ -257,9 +252,7 @@ class CrawlOrchestrator:
                     html_length = len(html or "")
                     html_preview = (html or "")[:300]
 
-                    is_seed_url_valid = validate_seed_url(
-                        page_url, final_url or "", location_path
-                    )
+                    is_seed_url_valid = validate_seed_url(page_url, final_url or "", location_path)
                     if page_number == 1:
                         current_final_seed_url = final_url
                         current_is_seed_url_valid = is_seed_url_valid
@@ -278,7 +271,9 @@ class CrawlOrchestrator:
                     if not is_seed_url_valid:
                         summary["failed_count"] += 1
                         summary["listing_page_failed_count"] += 1
-                        error_message = f"Invalid seed URL redirect: seed={page_url}, final={final_url}"
+                        error_message = (
+                            f"Invalid seed URL redirect: seed={page_url}, final={final_url}"
+                        )
                         self._save_list_page_debug(
                             debug_list_root=debug_list_root,
                             crawl_id=crawl_id,
@@ -408,9 +403,7 @@ class CrawlOrchestrator:
                         )
                         continue
 
-                    listing_entries = self.dependencies.source_adapter.parse_list_page(
-                        html
-                    )
+                    listing_entries = self.dependencies.source_adapter.parse_list_page(html)
 
                     block_reason = detect_block_reason(
                         http_status, html, listing_urls_found=len(listing_entries)
@@ -474,9 +467,7 @@ class CrawlOrchestrator:
                         from bs4 import BeautifulSoup
 
                         soup = BeautifulSoup(html or "", "lxml")
-                        sample_hrefs = [
-                            a.get("href") for a in soup.find_all("a", href=True)[:50]
-                        ]
+                        sample_hrefs = [a.get("href") for a in soup.find_all("a", href=True)[:50]]
                         for _idx, _href in enumerate(sample_hrefs):
                             pass
 
@@ -542,13 +533,9 @@ class CrawlOrchestrator:
             deduped_entries_by_url = {}
             for entry in target_listing_entries:
                 deduped_entries_by_url.setdefault(entry["listing_url"], entry)
-            target_listing_entries = list(deduped_entries_by_url.values())[
-                :max_listings
-            ]
+            target_listing_entries = list(deduped_entries_by_url.values())[:max_listings]
             if daily_listing_cap > 0:
-                remaining_listing_slots = (
-                    daily_listing_cap - len(requested_detail_urls)
-                )
+                remaining_listing_slots = daily_listing_cap - len(requested_detail_urls)
                 if remaining_listing_slots <= 0:
                     summary["halt_reason"] = "daily_listing_cap_reached"
                     halt_crawl = True
@@ -581,17 +568,15 @@ class CrawlOrchestrator:
 
                     detail_text = html_to_text(detail_html)
                     basic_fields = extract_phase1_stub_fields(detail_text, listing_url)
-                    detail_fields = self.dependencies.source_adapter.parse_detail_page(
-                        detail_html
-                    )
+                    detail_fields = self.dependencies.source_adapter.parse_detail_page(detail_html)
                     title = (
                         detail_fields.get("detail_title")
                         or listing_entry.get("listing_card_title")
                         or basic_fields.get("title_raw")
                     )
-                    description = detail_fields.get(
-                        "detail_description"
-                    ) or listing_entry.get("listing_card_description")
+                    description = detail_fields.get("detail_description") or listing_entry.get(
+                        "listing_card_description"
+                    )
                     location_audit = audit_location(
                         {
                             **listing_entry,
@@ -606,27 +591,19 @@ class CrawlOrchestrator:
                     )
                     detail_location_raw = location_audit.get("detail_location_raw")
                     location_match_status = location_audit["location_match_status"]
-                    location_match_confidence = location_audit[
-                        "location_match_confidence"
-                    ]
+                    location_match_confidence = location_audit["location_match_confidence"]
                     location_match_method = location_audit["location_match_method"]
                     combined_text = "\n".join(
-                        str(text)
-                        for text in [detail_text, title, description]
-                        if text
+                        str(text) for text in [detail_text, title, description] if text
                     )
-                    category_match_status, category_match_confidence = (
-                        classify_category_match(combined_text, category)
+                    category_match_status, category_match_confidence = classify_category_match(
+                        combined_text, category
                     )
 
                     if location_match_status in {"mismatch", "unknown"}:
-                        print_error(
-                            f"  LOCATION AUDIT: {location_match_status} for {listing_url}"
-                        )
+                        print_error(f"  LOCATION AUDIT: {location_match_status} for {listing_url}")
                     elif location_match_status == "assumed_from_seed":
-                        print_warning(
-                            f"  LOCATION AUDIT: assumed_from_seed for {listing_url}"
-                        )
+                        print_warning(f"  LOCATION AUDIT: assumed_from_seed for {listing_url}")
 
                     if category_match_status != "matched":
                         print_warning(
@@ -689,15 +666,9 @@ class CrawlOrchestrator:
                         "page_url": listing_entry["page_url"],
                         "page_number": listing_entry["page_number"],
                         "listing_card_title": listing_entry.get("listing_card_title"),
-                        "listing_card_price_raw": listing_entry.get(
-                            "listing_card_price_raw"
-                        ),
-                        "listing_card_area_raw": listing_entry.get(
-                            "listing_card_area_raw"
-                        ),
-                        "listing_card_location_raw": listing_entry.get(
-                            "listing_card_location_raw"
-                        ),
+                        "listing_card_price_raw": listing_entry.get("listing_card_price_raw"),
+                        "listing_card_area_raw": listing_entry.get("listing_card_area_raw"),
+                        "listing_card_location_raw": listing_entry.get("listing_card_location_raw"),
                         "listing_card_old_district_raw": listing_entry.get(
                             "listing_card_old_district_raw"
                         ),
@@ -710,17 +681,11 @@ class CrawlOrchestrator:
                         "district_raw": listing_entry.get("district_raw"),
                         "ward_raw": listing_entry.get("ward_raw"),
                         "breadcrumb_raw": detail_fields.get("breadcrumb_raw"),
-                        "breadcrumb_location_raw": detail_fields.get(
-                            "breadcrumb_location_raw"
-                        ),
+                        "breadcrumb_location_raw": detail_fields.get("breadcrumb_location_raw"),
                         "detail_location_raw": detail_location_raw,
                         "detail_address_raw": detail_fields.get("detail_address_raw"),
-                        "location_evidence_text": location_audit.get(
-                            "location_evidence_text"
-                        ),
-                        "location_evidence_source": location_audit.get(
-                            "location_evidence_source"
-                        ),
+                        "location_evidence_text": location_audit.get("location_evidence_text"),
+                        "location_evidence_source": location_audit.get("location_evidence_source"),
                         "location_match_status": location_match_status,
                         "location_match_confidence": location_match_confidence,
                         "location_match_method": location_match_method,
@@ -765,23 +730,15 @@ class CrawlOrchestrator:
                         "crawl_category": category,
                         "crawl_location_path": target.get("location_path"),
                         "crawl_location_label": location_label,
-                        "listing_card_location_raw": listing_entry.get(
-                            "listing_card_location_raw"
-                        ),
+                        "listing_card_location_raw": listing_entry.get("listing_card_location_raw"),
                         "listing_card_old_district_raw": listing_entry.get(
                             "listing_card_old_district_raw"
                         ),
                         "detail_address_raw": detail_fields.get("detail_address_raw"),
-                        "breadcrumb_location_raw": detail_fields.get(
-                            "breadcrumb_location_raw"
-                        ),
+                        "breadcrumb_location_raw": detail_fields.get("breadcrumb_location_raw"),
                         "detail_location_raw": detail_location_raw,
-                        "location_evidence_text": location_audit.get(
-                            "location_evidence_text"
-                        ),
-                        "location_evidence_source": location_audit.get(
-                            "location_evidence_source"
-                        ),
+                        "location_evidence_text": location_audit.get("location_evidence_text"),
+                        "location_evidence_source": location_audit.get("location_evidence_source"),
                         "location_match_status": location_match_status,
                         "location_match_confidence": location_match_confidence,
                         "location_match_method": location_match_method,
@@ -852,9 +809,7 @@ class CrawlOrchestrator:
 
         total_listing_pages = summary["total_listing_pages_requested"]
         if total_listing_pages > 0:
-            summary["listing_page_block_rate"] = (
-                summary["blocked_count"] / total_listing_pages
-            )
+            summary["listing_page_block_rate"] = summary["blocked_count"] / total_listing_pages
         else:
             summary["listing_page_block_rate"] = 0
 
@@ -872,14 +827,10 @@ class CrawlOrchestrator:
         else:
             summary["avg_html_size"] = 0
 
-        valid_seed_urls = sum(
-            1 for record in seed_url_audits if record.get("is_seed_url_valid")
-        )
+        valid_seed_urls = sum(1 for record in seed_url_audits if record.get("is_seed_url_valid"))
         invalid_seed_urls = len(seed_url_audits) - valid_seed_urls
         location_matched_count = sum(
-            1
-            for record in detail_audits
-            if record.get("location_match_status") == "matched"
+            1 for record in detail_audits if record.get("location_match_status") == "matched"
         )
         location_assumed_from_seed_count = sum(
             1
@@ -887,19 +838,13 @@ class CrawlOrchestrator:
             if record.get("location_match_status") == "assumed_from_seed"
         )
         location_mismatch_count = sum(
-            1
-            for record in detail_audits
-            if record.get("location_match_status") == "mismatch"
+            1 for record in detail_audits if record.get("location_match_status") == "mismatch"
         )
         location_unknown_count = sum(
-            1
-            for record in detail_audits
-            if record.get("location_match_status") == "unknown"
+            1 for record in detail_audits if record.get("location_match_status") == "unknown"
         )
         category_matched_count = sum(
-            1
-            for record in detail_audits
-            if record.get("category_match_status") == "matched"
+            1 for record in detail_audits if record.get("category_match_status") == "matched"
         )
         category_mismatch_count = sum(
             1
@@ -939,9 +884,7 @@ class CrawlOrchestrator:
         summary["audit_pass_rate"] = location_audit["audit_pass_rate"]
 
         summary_path = bronze_root / "crawl_log" / f"crawl_summary_{crawl_id}.json"
-        location_audit_path = (
-            bronze_root / "crawl_log" / f"crawl_location_audit_{crawl_id}.json"
-        )
+        location_audit_path = bronze_root / "crawl_log" / f"crawl_location_audit_{crawl_id}.json"
         audit_sample_path = bronze_root / "crawl_log" / f"audit_sample_{crawl_id}.csv"
         save_json_file(summary_path, summary)
         save_json_file(location_audit_path, location_audit)

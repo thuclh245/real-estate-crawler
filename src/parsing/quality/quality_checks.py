@@ -60,11 +60,7 @@ def apply_quality_flags(record: Dict[str, Any]) -> Dict[str, Any]:
     # Parse status
     if record.get("parse_error_message"):
         record["parse_status"] = "failed"
-    elif (
-        record["is_missing_price"]
-        or record["is_missing_area"]
-        or record["is_missing_location"]
-    ):
+    elif record["is_missing_price"] or record["is_missing_area"] or record["is_missing_location"]:
         record["parse_status"] = "partial_success"
     else:
         record["parse_status"] = "success"

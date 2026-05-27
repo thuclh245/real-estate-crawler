@@ -36,9 +36,7 @@ def run_sources_to_silver(
     """Run configured sources through crawl, Bronze, Silver, and scorecard checks."""
     base_path = Path(base_dir)
     scorecard_root = (
-        Path(scorecard_output_dir)
-        if scorecard_output_dir is not None
-        else base_path / "logs"
+        Path(scorecard_output_dir) if scorecard_output_dir is not None else base_path / "logs"
     )
     runs: list[dict[str, Any]] = []
 
@@ -130,7 +128,9 @@ def run_sources_to_silver(
             validation = validate_silver_output(
                 silver_dir=silver_dir,
                 source_code=source,
-                min_expected_records=int((config.get("quality") or {}).get("min_expected_records", 0)),
+                min_expected_records=int(
+                    (config.get("quality") or {}).get("min_expected_records", 0)
+                ),
             )
             quality_summary_path = silver_dir / "data_quality_summary.json"
             scorecard = build_source_scorecard(
@@ -208,9 +208,7 @@ def validate_silver_output(
     for column in lineage_columns:
         values = {str(value) for value in df[column].dropna().unique().tolist()}
         if values and values != {source_code}:
-            raise ValueError(
-                f"Silver {column} values {sorted(values)} do not match {source_code}"
-            )
+            raise ValueError(f"Silver {column} values {sorted(values)} do not match {source_code}")
 
     return {
         "listings_path": str(listings_path),

@@ -73,12 +73,8 @@ FEATURE_PATTERNS = {
     },
     "bathroom_count": {
         "patterns": [
-            re.compile(
-                r"\b(\d{1,2})\s*(?:phong tam|wc|vs|ve sinh|nha ve sinh|toilet)\b", FLAGS
-            ),
-            re.compile(
-                r"\b(?:wc|vs|ve sinh|so phong tam)\s*[:\-]?\s*(\d{1,2})\b", FLAGS
-            ),
+            re.compile(r"\b(\d{1,2})\s*(?:phong tam|wc|vs|ve sinh|nha ve sinh|toilet)\b", FLAGS),
+            re.compile(r"\b(?:wc|vs|ve sinh|so phong tam)\s*[:\-]?\s*(\d{1,2})\b", FLAGS),
         ]
     },
     "project_name": {
@@ -113,15 +109,9 @@ FEATURE_PATTERNS = {
         "residential": re.compile(
             r"\b(khu dan cu|kdc|dan cu dong duc|dong dan cu|khu dan sinh)\b", FLAGS
         ),
-        "security": re.compile(
-            r"\b(an ninh|an ninh tot|bao ve 24/7|camera|khu an ninh)\b", FLAGS
-        ),
-        "educated": re.compile(
-            r"\b(dan tri cao|hang xom van minh|cong dong van minh)\b", FLAGS
-        ),
-        "subdivision": re.compile(
-            r"\b(phan lo|khu phan lo|dat phan lo|biet thu phan lo)\b", FLAGS
-        ),
+        "security": re.compile(r"\b(an ninh|an ninh tot|bao ve 24/7|camera|khu an ninh)\b", FLAGS),
+        "educated": re.compile(r"\b(dan tri cao|hang xom van minh|cong dong van minh)\b", FLAGS),
+        "subdivision": re.compile(r"\b(phan lo|khu phan lo|dat phan lo|biet thu phan lo)\b", FLAGS),
     },
     "direction": {
         "pattern": re.compile(
@@ -137,14 +127,10 @@ FEATURE_PATTERNS = {
             r"gia tot cho khach thien chi|khach thien chi co thuong luong)\b",
             FLAGS,
         ),
-        "negation_window": re.compile(
-            r"\b(khong|chua|khong co)(?:\s+\w+){0,2}\s+$", FLAGS
-        ),
+        "negation_window": re.compile(r"\b(khong|chua|khong co)(?:\s+\w+){0,2}\s+$", FLAGS),
     },
     "car_access": {
-        "enter": re.compile(
-            r"\b(o to vao|oto vao|xe hoi vao|oto vao nha|o to vao nha)\b", FLAGS
-        ),
+        "enter": re.compile(r"\b(o to vao|oto vao|xe hoi vao|oto vao nha|o to vao nha)\b", FLAGS),
         "park": re.compile(
             r"\b(o to do|oto do|o to do cua|oto do cua|cho de o to|bai do xe|"
             r"gara|garage|o to ngu trong nha|oto ngu trong nha)\b",

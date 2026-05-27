@@ -19,26 +19,32 @@ def expand_targets(config: dict) -> list[dict]:
 
             base_target = {key: value for key, value in target.items() if key != "categories"}
             for category in categories:
-                expanded_targets.append({
-                    **base_target,
-                    "business_type": category.get("listing_business_type") or category.get("business_type"),
-                    "category": category.get("slug") or category.get("category"),
-                    "category_label": category.get("label") or category.get("category_label"),
-                    "property_type_group": category.get("property_type_group"),
-                })
+                expanded_targets.append(
+                    {
+                        **base_target,
+                        "business_type": category.get("listing_business_type")
+                        or category.get("business_type"),
+                        "category": category.get("slug") or category.get("category"),
+                        "category_label": category.get("label") or category.get("category_label"),
+                        "property_type_group": category.get("property_type_group"),
+                    }
+                )
         return expanded_targets
 
     if config.get("categories") and config.get("locations"):
         expanded_targets = []
         for location in config["locations"]:
             for category in config["categories"]:
-                expanded_targets.append({
-                    **location,
-                    "business_type": category.get("listing_business_type") or category.get("business_type"),
-                    "category": category.get("slug") or category.get("category"),
-                    "category_label": category.get("label") or category.get("category_label"),
-                    "property_type_group": category.get("property_type_group"),
-                })
+                expanded_targets.append(
+                    {
+                        **location,
+                        "business_type": category.get("listing_business_type")
+                        or category.get("business_type"),
+                        "category": category.get("slug") or category.get("category"),
+                        "category_label": category.get("label") or category.get("category_label"),
+                        "property_type_group": category.get("property_type_group"),
+                    }
+                )
         return expanded_targets
 
     raise ValueError("Config must define either targets or categories + locations.")
