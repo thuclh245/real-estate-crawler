@@ -50,9 +50,22 @@ def publish_parquet_to_bq(parquet_path: Path, table_id: str, partition_field: st
 def main():
     gold_base = Path("data/gold")
     
-    # Read environment dataset prefix or default to production dataset
-    dataset_id = os.getenv("BQ_DATASET_ID", "bigdata-subject-real-estate-lakehouse.gold")
-    
+    # Auto-detect active Google Cloud Project ID from BigQuery Client
+    active_project = "bigdata-subject-real-estate-lakehouse"
+    try:
+        from google.cloud import bigquery
+        client = bigquery.Client()
+        active_project = client.project
+        print(f"[INFO] Auto-detected active Google Cloud Project: {active_project}")
+    except Exception as e:
+        print(f"[INFO] Could not auto-detect GCP project, using default or env: {e}")
+        
+    dataset_env = os.getenv("BQ_DATASET_ID", "gold")
+    if "." in dataset_env:
+        dataset_id = dataset_env
+    else:
+        dataset_id = f"{active_project}.{dataset_env}"
+        
     # Mapping of local Gold tables to target BigQuery tables
     tables = {
         "gold_listing_snapshots": f"{dataset_id}.fact_listing_snapshot",
