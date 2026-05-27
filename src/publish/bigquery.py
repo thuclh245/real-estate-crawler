@@ -63,8 +63,27 @@ def main():
     dataset_env = os.getenv("BQ_DATASET_ID", "gold")
     if "." in dataset_env:
         dataset_id = dataset_env
+        dataset_name = dataset_env.split(".")[1]
     else:
         dataset_id = f"{active_project}.{dataset_env}"
+        dataset_name = dataset_env
+        
+    # Check and dynamically create BigQuery Dataset if it doesn't exist
+    try:
+        from google.cloud import bigquery
+        client = bigquery.Client()
+        dataset_ref = client.dataset(dataset_name)
+        try:
+            client.get_dataset(dataset_ref)
+            print(f"[INFO] Dataset {dataset_id} already exists.")
+        except Exception:
+            print(f"[INFO] Dataset {dataset_id} not found, creating it dynamically...")
+            dataset = bigquery.Dataset(dataset_ref)
+            dataset.location = "US"  # Use US multi-region to keep costs low/free
+            client.create_dataset(dataset, exists_ok=True)
+            print(f"✓ [SUCCESS] Dataset {dataset_id} created dynamically!")
+    except Exception as e:
+        print(f"[WARN] Failed to verify or create dataset {dataset_id}: {e}")
         
     # Mapping of local Gold tables to target BigQuery tables
     tables = {
