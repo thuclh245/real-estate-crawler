@@ -1,24 +1,24 @@
-crawl4ai==0.8.6
-pyarrow==20.0.0
-plotly==6.1.2
-streamlit==1.45.1
+crawl4ai>=0.8.6
+pyarrow>=16.0.0
+plotly>=6.1.0
+streamlit>=1.45.0
 
 # Gửi HTTP requests (GET/POST/headers/cookies), dùng để crawl dữ liệu web
-requests==2.33.1
+requests>=2.31.0
 
 # Parse & trích xuất dữ liệu HTML/XML (find, select, css selector)
-beautifulsoup4==4.14.3
+beautifulsoup4>=4.12.0
 
 # Parser HTML/XML tốc độ cao, backend cho BeautifulSoup & XPath
-lxml==5.4.0
+lxml>=5.2.0
 
 # Đọc/ghi file cấu hình YAML (config crawler, setting, mapping rule)
-PyYAML==6.0.3
+PyYAML>=6.0.0
 
 # Xử lý dữ liệu dạng bảng (DataFrame), làm sạch & xuất CSV/Excel
-pandas==2.2.3
+pandas>=2.1.0
 
 # Xử lý ngày giờ nâng cao (parse, timezone, timedelta)
-python-dateutil==2.9.0.post0
+python-dateutil>=2.8.0
 # Google Cloud BigQuery client library
 google-cloud-bigquery>=3.20.0

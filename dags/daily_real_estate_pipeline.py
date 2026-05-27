@@ -46,7 +46,7 @@ with DAG(
     'daily_real_estate_lakehouse',
     default_args=default_args,
     description='Automated Crawl, Transform, Validate and BigQuery serving load',
-    schedule_interval='30 3 * * *',  # Runs daily at 03:30 AM UTC (10:30 AM ICT)
+    schedule='0 19 * * *',
     catchup=False,
     max_active_runs=1,
     on_failure_callback=on_task_failure,
