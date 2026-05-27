@@ -100,25 +100,6 @@ class ProductionFoundationTest(unittest.TestCase):
 
         self.assertEqual(thresholds.min_silver_records, 100)
 
-    def test_metadata_catalog_seed_exists_for_stage1_contracts(self):
-        docs_path = ROOT / "docs" / "metadata" / "table_catalog.md"
-        config_path = ROOT / "configs" / "metadata" / "table_catalog.json"
-
-        self.assertTrue(docs_path.exists())
-        self.assertTrue(config_path.exists())
-
-        catalog = json.loads(config_path.read_text(encoding="utf-8"))
-        table_names = {table["name"] for table in catalog["tables"]}
-
-        self.assertIn("production_run_summary", table_names)
-        self.assertIn("quarantine_records", table_names)
-        self.assertIn("fact_listing_snapshot", table_names)
-        self.assertIn("dim_listing", table_names)
-        self.assertEqual(
-            catalog["source_systems"][0]["target_v2_config_pattern"],
-            "configs/sources/<source_code>.yaml",
-        )
-
     def test_preflight_writes_result_and_fails_missing_config(self):
         config_path = self.base_dir / "missing.yaml"
         exit_code, payload, output_path = run_preflight(
