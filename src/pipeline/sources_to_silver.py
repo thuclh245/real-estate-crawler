@@ -46,49 +46,104 @@ def run_sources_to_silver(
         config_file = Path(config_path)
         config = load_config(config_file)
         source_code = _source_code(config)
-        crawl_summary = _run_source_crawl(
-            config=config,
-            config_path=config_file,
-            base_dir=base_path,
-            fetch_with_retry_fn=fetch_with_retry_fn,
-        )
-        source = str(crawl_summary["source"])
-        crawl_date = str(crawl_summary["crawl_date"])
-        crawl_id = str(crawl_summary["crawl_id"])
-        bronze_dir = (
-            base_path
-            / "bronze"
-            / f"source={source}"
-            / f"crawl_date={crawl_date}"
-            / f"crawl_id={crawl_id}"
-        )
-        silver_dir = (
-            base_path
-            / "silver"
-            / f"source={source}"
-            / f"crawl_date={crawl_date}"
-            / f"crawl_id={crawl_id}"
-        )
 
-        parser_version = str(
-            (config.get("crawl_settings") or {}).get("parser_version")
-            or crawl_summary.get("parser_version")
-            or ("nhatot_adapter_v0.1" if source_code == "nhatot" else "phase2_v1")
-        )
-        metadata_dir = bronze_dir / "metadata"
-        if not metadata_dir.exists() and _continue_without_silver(config):
+        # Initialize default values in case of early exception
+        source = source_code
+        crawl_date = "unknown_date"
+        crawl_id = "failed_run"
+        bronze_dir = None
+        silver_dir = None
+        parser_version = "unknown"
+
+        try:
+            crawl_summary = _run_source_crawl(
+                config=config,
+                config_path=config_file,
+                base_dir=base_path,
+                fetch_with_retry_fn=fetch_with_retry_fn,
+            )
+            source = str(crawl_summary["source"])
+            crawl_date = str(crawl_summary["crawl_date"])
+            crawl_id = str(crawl_summary["crawl_id"])
+            bronze_dir = (
+                base_path
+                / "bronze"
+                / f"source={source}"
+                / f"crawl_date={crawl_date}"
+                / f"crawl_id={crawl_id}"
+            )
+            silver_dir = (
+                base_path
+                / "silver"
+                / f"source={source}"
+                / f"crawl_date={crawl_date}"
+                / f"crawl_id={crawl_id}"
+            )
+
+            parser_version = str(
+                (config.get("crawl_settings") or {}).get("parser_version")
+                or crawl_summary.get("parser_version")
+                or ("nhatot_adapter_v0.1" if source_code == "nhatot" else "phase2_v1")
+            )
+            metadata_dir = bronze_dir / "metadata"
+            if not metadata_dir.exists() and _continue_without_silver(config):
+                scorecard = build_source_scorecard(
+                    crawl_summary=crawl_summary,
+                    silver_quality_summary={
+                        "total_metadata_files": 0,
+                        "total_records_parsed": 0,
+                        "total_quarantined_records": 0,
+                        "parse_success_rate": 0.0,
+                    },
+                    quality_config=config.get("quality") or {},
+                    artifact_paths=[str(bronze_dir / "crawl_log")],
+                )
+                scorecard_path = write_source_scorecard(scorecard, scorecard_root)
+                runs.append(
+                    {
+                        "config_path": str(config_file),
+                        "source": source,
+                        "crawl_date": crawl_date,
+                        "crawl_id": crawl_id,
+                        "bronze_dir": str(bronze_dir),
+                        "silver_dir": str(silver_dir),
+                        "parser_version": parser_version,
+                        "status": "skipped_no_metadata",
+                        "skip_reason": "metadata folder not found after crawl",
+                        "silver_validation": {
+                            "listings_path": None,
+                            "row_count": 0,
+                            "lineage_columns": [],
+                        },
+                        "source_scorecard_path": str(scorecard_path),
+                        "source_scorecard": scorecard,
+                    }
+                )
+                continue
+
+            run_bronze_to_silver(
+                bronze_dir=str(bronze_dir),
+                silver_dir=str(silver_dir),
+                parser_version=parser_version,
+            )
+
+            validation = validate_silver_output(
+                silver_dir=silver_dir,
+                source_code=source,
+                min_expected_records=int((config.get("quality") or {}).get("min_expected_records", 0)),
+            )
+            quality_summary_path = silver_dir / "data_quality_summary.json"
             scorecard = build_source_scorecard(
                 crawl_summary=crawl_summary,
-                silver_quality_summary={
-                    "total_metadata_files": 0,
-                    "total_records_parsed": 0,
-                    "total_quarantined_records": 0,
-                    "parse_success_rate": 0.0,
-                },
+                silver_quality_summary=load_silver_quality_summary(quality_summary_path),
                 quality_config=config.get("quality") or {},
-                artifact_paths=[str(bronze_dir / "crawl_log")],
+                artifact_paths=[
+                    str(silver_dir / "listings.parquet"),
+                    str(quality_summary_path),
+                ],
             )
             scorecard_path = write_source_scorecard(scorecard, scorecard_root)
+
             runs.append(
                 {
                     "config_path": str(config_file),
@@ -98,57 +153,27 @@ def run_sources_to_silver(
                     "bronze_dir": str(bronze_dir),
                     "silver_dir": str(silver_dir),
                     "parser_version": parser_version,
-                    "status": "skipped_no_metadata",
-                    "skip_reason": "metadata folder not found after crawl",
-                    "silver_validation": {
-                        "listings_path": None,
-                        "row_count": 0,
-                        "lineage_columns": [],
-                    },
+                    "status": "success",
+                    "silver_validation": validation,
                     "source_scorecard_path": str(scorecard_path),
                     "source_scorecard": scorecard,
                 }
             )
-            continue
-
-        run_bronze_to_silver(
-            bronze_dir=str(bronze_dir),
-            silver_dir=str(silver_dir),
-            parser_version=parser_version,
-        )
-
-        validation = validate_silver_output(
-            silver_dir=silver_dir,
-            source_code=source,
-            min_expected_records=int((config.get("quality") or {}).get("min_expected_records", 0)),
-        )
-        quality_summary_path = silver_dir / "data_quality_summary.json"
-        scorecard = build_source_scorecard(
-            crawl_summary=crawl_summary,
-            silver_quality_summary=load_silver_quality_summary(quality_summary_path),
-            quality_config=config.get("quality") or {},
-            artifact_paths=[
-                str(silver_dir / "listings.parquet"),
-                str(quality_summary_path),
-            ],
-        )
-        scorecard_path = write_source_scorecard(scorecard, scorecard_root)
-
-        runs.append(
-            {
-                "config_path": str(config_file),
-                "source": source,
-                "crawl_date": crawl_date,
-                "crawl_id": crawl_id,
-                "bronze_dir": str(bronze_dir),
-                "silver_dir": str(silver_dir),
-                "parser_version": parser_version,
-                "status": "success",
-                "silver_validation": validation,
-                "source_scorecard_path": str(scorecard_path),
-                "source_scorecard": scorecard,
-            }
-        )
+        except Exception as e:
+            print(f"[WARNING] Skipping config {config_path} due to error: {e}")
+            runs.append(
+                {
+                    "config_path": str(config_file),
+                    "source": source,
+                    "crawl_date": crawl_date,
+                    "crawl_id": crawl_id,
+                    "bronze_dir": str(bronze_dir) if bronze_dir else None,
+                    "silver_dir": str(silver_dir) if silver_dir else None,
+                    "parser_version": parser_version,
+                    "status": "failed",
+                    "error_message": str(e),
+                }
+            )
 
     return {
         "pipeline": "sources_to_silver",
