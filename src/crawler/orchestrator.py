@@ -189,7 +189,22 @@ class CrawlOrchestrator:
             }
         )
 
-        for target in expanded_targets:
+        # Build per-target page URL lists using the adapter when it supports
+        # build_seed_urls() (e.g. NhatotAdapter generates Chợ Tốt JSON API URLs
+        # that return 20 listings/page). Falls back to legacy web URL construction
+        # for adapters that do not implement build_seed_urls().
+        _adapter = self.dependencies.source_adapter
+        adapter_urls_by_target: list[list[str]] | None = None
+        if hasattr(_adapter, "build_seed_urls"):
+            _all_adapter_urls = _adapter.build_seed_urls(self.config)
+            # build_seed_urls generates max_pages URLs per target in the same
+            # order as expanded_targets — chunk into per-target slices.
+            adapter_urls_by_target = [
+                _all_adapter_urls[i * max_pages : (i + 1) * max_pages]
+                for i in range(len(expanded_targets))
+            ]
+
+        for target_idx, target in enumerate(expanded_targets):
             if halt_crawl:
                 break
 
@@ -207,13 +222,23 @@ class CrawlOrchestrator:
             current_final_seed_url = None
             current_is_seed_url_valid = None
 
-            for page_number in range(1, max_pages + 1):
-                if seed_url_override:
-                    page_url = seed_url_for_page(seed_url_override, page_number)
-                else:
-                    page_url = build_seed_url(
-                        base_url, category, location_path, page_number
+            # Use adapter-provided URLs (Chợ Tốt API JSON) when available,
+            # otherwise fall back to web HTML page URL construction.
+            if adapter_urls_by_target is not None:
+                target_page_urls = adapter_urls_by_target[target_idx]
+                if target_page_urls:
+                    current_seed_url = target_page_urls[0]
+            else:
+                target_page_urls = [
+                    (
+                        seed_url_for_page(seed_url_override, page_number)
+                        if seed_url_override
+                        else build_seed_url(base_url, category, location_path, page_number)
                     )
+                    for page_number in range(1, max_pages + 1)
+                ]
+
+            for page_number, page_url in enumerate(target_page_urls, start=1):
 
                 summary["total_listing_pages_requested"] += 1
 
