@@ -152,7 +152,17 @@ def _read_table(warehouse_base_path: Path, table_name: str) -> pd.DataFrame:
     if not parquet_files:
         fail(f"No parquet files found under: {table_path}")
 
-    frames = [pd.read_parquet(file_path) for file_path in parquet_files]
+    frames = []
+    for file_path in parquet_files:
+        df = pd.read_parquet(file_path)
+        for parent in file_path.parents:
+            if parent == table_path:
+                break
+            if "=" in parent.name:
+                part_col, part_val = parent.name.split("=", 1)
+                df[part_col] = part_val
+        frames.append(df)
+
     return pd.concat(frames, ignore_index=True, sort=False)
 
 
@@ -165,7 +175,17 @@ def _read_optional_table(base_path: Path, table_name: str) -> pd.DataFrame | Non
     if not parquet_files:
         return None
 
-    frames = [pd.read_parquet(file_path) for file_path in parquet_files]
+    frames = []
+    for file_path in parquet_files:
+        df = pd.read_parquet(file_path)
+        for parent in file_path.parents:
+            if parent == table_path:
+                break
+            if "=" in parent.name:
+                part_col, part_val = parent.name.split("=", 1)
+                df[part_col] = part_val
+        frames.append(df)
+
     return pd.concat(frames, ignore_index=True, sort=False)
 
 
@@ -218,12 +238,20 @@ def _check_snapshot_reconciliation(warehouse_base_path: Path, gold_base_path: Pa
         fail(f"Missing Gold snapshot table under {gold_base_path}")
 
     fact_df = _read_table(warehouse_base_path, "fact_listing_snapshot")
-    gold_count = int(gold_snapshot_df.shape[0])
+    
+    # Identify unique snapshots at the grain level to reconcile correctly in the presence of duplicate parquet rows
+    grain_cols = []
+    for col in ["snapshot_date", "source", "dedup_key", "listing_id"]:
+        if col in gold_snapshot_df.columns:
+            grain_cols.append(col)
+            
+    unique_gold_df = gold_snapshot_df.drop_duplicates(subset=grain_cols) if grain_cols else gold_snapshot_df
+    gold_count = int(unique_gold_df.shape[0])
     fact_count = int(fact_df.shape[0])
     if fact_count != gold_count:
         fail(
             "fact_listing_snapshot record count does not reconcile to Gold snapshot output: "
-            f"fact={fact_count}, gold={gold_count}"
+            f"fact={fact_count}, gold={gold_count} (source raw={int(gold_snapshot_df.shape[0])})"
         )
 
     print(f"PASS: fact_listing_snapshot reconciles to Gold snapshot rows={gold_count}")
