@@ -110,8 +110,8 @@ class NhatotSmokeCrawlTest(unittest.TestCase):
         self.assertEqual(crawl_config["source_domain"], "nhatot.com")
         self.assertEqual(crawl_config["base_url"], "https://www.nhatot.com")
         self.assertEqual(crawl_config["crawl_settings"]["fetch_mode"], "requests")
-        self.assertEqual(crawl_config["crawl_settings"]["max_pages_per_target"], 6)
-        self.assertEqual(crawl_config["crawl_settings"]["daily_listing_cap"], 1000)
+        self.assertEqual(crawl_config["crawl_settings"]["max_pages_per_target"], 20)
+        self.assertEqual(crawl_config["crawl_settings"]["daily_listing_cap"], 1500)
         self.assertIs(crawl_config["crawl_settings"]["stop_on_fetch_error"], True)
         self.assertGreaterEqual(
             crawl_config["crawl_settings"]["request_delay_seconds"],

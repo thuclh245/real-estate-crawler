@@ -27,6 +27,7 @@ class SourceAcceptanceTest(unittest.TestCase):
                 encoding="utf-8"
             )
         )
+        self.source_config["compatibility"]["production_scope"] = "silver_only"
         self.scorecard = {
             "source_code": "nhatot",
             "crawl_date": "2026-05-26",

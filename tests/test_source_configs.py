@@ -46,8 +46,8 @@ class SourceConfigsTest(unittest.TestCase):
         self.assertEqual(config["fetch_mode"], "requests")
 
         crawl = config["crawl"]
-        self.assertEqual(crawl["max_pages_per_target"], 6)
-        self.assertEqual(crawl["max_listings_per_target"], 42)
+        self.assertEqual(crawl["max_pages_per_target"], 20)
+        self.assertEqual(crawl["max_listings_per_target"], 200)
         self.assertGreaterEqual(float(crawl["request_delay_seconds"]), 1.5)
         self.assertEqual(crawl["concurrency"], 1)
         self.assertEqual(crawl["max_retries"], 1)
@@ -55,7 +55,7 @@ class SourceConfigsTest(unittest.TestCase):
 
         api = config["api"]
         self.assertIs(api["enabled"], True)
-        self.assertEqual(api["daily_listing_cap"], 1000)
+        self.assertEqual(api["daily_listing_cap"], 1500)
         self.assertEqual(api["region_id"], 12)
 
         compatibility = config["compatibility"]
@@ -200,9 +200,9 @@ class SourceConfigsTest(unittest.TestCase):
         self.assertEqual(nhatot["source_domain"], "nhatot.com")
         self.assertEqual(nhatot["fetch_mode"], "requests")
         self.assertIs(nhatot["api"]["enabled"], True)
-        self.assertEqual(nhatot["api"]["daily_listing_cap"], 1000)
-        self.assertEqual(nhatot["crawl"]["max_pages_per_target"], 6)
-        self.assertEqual(nhatot["crawl"]["max_listings_per_target"], 42)
+        self.assertEqual(nhatot["api"]["daily_listing_cap"], 1500)
+        self.assertEqual(nhatot["crawl"]["max_pages_per_target"], 20)
+        self.assertEqual(nhatot["crawl"]["max_listings_per_target"], 200)
         self.assertEqual(len(nhatot["targets"]), 24)
         self.assertEqual(
             {target["property_type_group"] for target in nhatot["targets"]},
@@ -210,7 +210,7 @@ class SourceConfigsTest(unittest.TestCase):
         )
         self.assertEqual(
             len(nhatot["targets"]) * nhatot["crawl"]["max_listings_per_target"],
-            1008,
+            4800,
         )
         self.assertEqual(nhatot["quality"]["min_expected_records"], 800)
 

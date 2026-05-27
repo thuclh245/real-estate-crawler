@@ -81,8 +81,8 @@ class NhatotAdapterTest(unittest.TestCase):
         self.assertEqual(
             urls,
             [
-                "https://gateway.chotot.com/v1/public/ad-listing?cg=1010&region=12&area=74&page=1&limit=20&st=s",
-                "https://gateway.chotot.com/v1/public/ad-listing?cg=1010&region=12&area=74&page=2&limit=20&st=s",
+                "https://gateway.chotot.com/v1/public/ad-listing?cg=1010&region=12&area=74&o=0&limit=20&st=s",
+                "https://gateway.chotot.com/v1/public/ad-listing?cg=1010&region=12&area=74&o=20&limit=20&st=s",
             ],
         )
 
