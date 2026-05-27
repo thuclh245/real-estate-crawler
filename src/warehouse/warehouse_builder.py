@@ -149,7 +149,13 @@ def _write_table(df: pd.DataFrame, output_path: Path) -> None:
 
 
 def _source_key(source_code: object) -> int:
-    return SOURCE_KEY_MAP.get(_normalize_text(source_code), 0)
+    normalized = _normalize_text(source_code)
+    if normalized in SOURCE_KEY_MAP:
+        return SOURCE_KEY_MAP[normalized]
+    for key, val in SOURCE_KEY_MAP.items():
+        if key != "unknown" and (key in normalized or normalized in key):
+            return val
+    return 0
 
 
 def _choose_text_column(df: pd.DataFrame, candidates: list[str]) -> pd.Series:
@@ -240,12 +246,12 @@ def build_dim_source(snapshot_df: pd.DataFrame, quality_df: pd.DataFrame) -> pd.
                 "source_code": source_code,
                 "source_name": source_code.replace("_", " ").title(),
                 "source_domain": "batdongsan.com.vn"
-                if source_code == "batdongsan"
+                if "batdongsan" in source_code
                 else "nhatot.com"
-                if source_code == "nhatot"
+                if "nhatot" in source_code
                 else None,
                 "source_type": "website",
-                "is_active": source_code in {"batdongsan", "nhatot"},
+                "is_active": "batdongsan" in source_code or "nhatot" in source_code,
                 "first_onboarded_at": None,
             }
         )
