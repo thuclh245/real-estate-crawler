@@ -43,9 +43,6 @@ def default_daily_logs_dir() -> Path:
     return logs_dir() / "daily_pipeline"
 
 
-from pathlib import Path
-
-
 def data_root(base_dir: Path | str = Path("data")) -> Path:
     return Path(base_dir)
 

@@ -37,10 +37,6 @@ def append_jsonl_log(path: Path | str, event: dict[str, Any]) -> Path:
     return log_path
 
 
-import json
-from pathlib import Path
-
-
 def append_jsonl(path: str | Path, record: dict):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
