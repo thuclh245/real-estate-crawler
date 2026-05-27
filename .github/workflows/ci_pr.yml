@@ -1,6 +1,8 @@
-name: CI Pull Request Validation
+name: CI Pipeline Validation
 
 on:
+  push:
+    branches: [ main, dev ]
   pull_request:
     branches: [ main, dev ]
 
@@ -15,6 +17,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+          cache: 'pip' # Enable automatic pip caching
 
       - name: Set up Java (for Spark)
         uses: actions/setup-java@v4
@@ -26,15 +29,15 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          pip install pytest black flake8
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
 
-      - name: Check Formatting (Black)
-        run: black --check src tests
-
-      - name: Lint Code (Flake8)
-        run: flake8 src tests --count --select=E9,F63,F7,F82 --show-source --statistics
+      - name: Check Formatting & Lint (Ruff)
+        run: |
+          ruff format --check src tests
+          ruff check src tests
 
       - name: Run Unit & Integration Tests
         env:
           PYTHONPATH: src
         run: pytest tests/
+
