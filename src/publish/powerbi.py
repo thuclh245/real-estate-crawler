@@ -116,7 +116,8 @@ def publish_powerbi_marts(
     # 4. Generate refresh manifest metadata
     manifest_path = powerbi_base_path / "refresh_manifest.json"
     manifest = {
-        "last_refresh_timestamp": datetime.now(timezone.utc).replace(microsecond=0).isoformat() + "Z",
+        "last_refresh_timestamp": datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+        + "Z",
         "warehouse_schema_version": "warehouse_v1",
         "table_row_counts": table_row_counts,
         "latest_snapshot_date": latest_snapshot_date,
@@ -125,7 +126,9 @@ def publish_powerbi_marts(
     }
 
     try:
-        manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        manifest_path.write_text(
+            json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
         print(f"[OK] [PowerBI] Manifest generated at: {manifest_path}")
     except Exception as err:
         print(f"[ERROR] [PowerBI] Failed to write manifest: {err}")

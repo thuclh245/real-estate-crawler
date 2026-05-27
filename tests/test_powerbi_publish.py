@@ -133,7 +133,9 @@ class PowerBiPublishTest(unittest.TestCase):
         snapshot_table_dir.mkdir(parents=True, exist_ok=True)
         quality_table_dir.mkdir(parents=True, exist_ok=True)
 
-        pd.DataFrame(snapshot_rows).to_parquet(snapshot_table_dir / "part-0000.parquet", index=False)
+        pd.DataFrame(snapshot_rows).to_parquet(
+            snapshot_table_dir / "part-0000.parquet", index=False
+        )
         pd.DataFrame(quality_rows).to_parquet(quality_table_dir / "part-0000.parquet", index=False)
 
         # Set environment variable to control run_id

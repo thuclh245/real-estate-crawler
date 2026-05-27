@@ -238,14 +238,16 @@ def _check_snapshot_reconciliation(warehouse_base_path: Path, gold_base_path: Pa
         fail(f"Missing Gold snapshot table under {gold_base_path}")
 
     fact_df = _read_table(warehouse_base_path, "fact_listing_snapshot")
-    
+
     # Identify unique snapshots at the grain level to reconcile correctly in the presence of duplicate parquet rows
     grain_cols = []
     for col in ["snapshot_date", "source", "dedup_key", "listing_id"]:
         if col in gold_snapshot_df.columns:
             grain_cols.append(col)
-            
-    unique_gold_df = gold_snapshot_df.drop_duplicates(subset=grain_cols) if grain_cols else gold_snapshot_df
+
+    unique_gold_df = (
+        gold_snapshot_df.drop_duplicates(subset=grain_cols) if grain_cols else gold_snapshot_df
+    )
     gold_count = int(unique_gold_df.shape[0])
     fact_count = int(fact_df.shape[0])
     if fact_count != gold_count:
