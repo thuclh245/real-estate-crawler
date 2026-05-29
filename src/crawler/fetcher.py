@@ -146,6 +146,8 @@ async def fetch_html_crawl4ai_async(url: str) -> tuple[int, str, str]:
     run_config = CrawlerRunConfig(
         magic=True,
         cache_mode=CacheMode.BYPASS,
+        wait_until="load",
+        delay_before_return_html=3.0,
     )
 
     async with AsyncWebCrawler(config=browser_config) as crawler:
