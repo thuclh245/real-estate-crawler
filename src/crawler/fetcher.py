@@ -134,12 +134,22 @@ def fetch_html_requests(url: str) -> tuple[int, str, str]:
 
 async def fetch_html_crawl4ai_async(url: str) -> tuple[int, str, str]:
     try:
-        from crawl4ai import AsyncWebCrawler
+        from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, CacheMode
     except ImportError as exc:
         raise RuntimeError("crawl4ai is not installed in current environment") from exc
 
-    async with AsyncWebCrawler() as crawler:
-        result = await crawler.arun(url=url)
+    browser_config = BrowserConfig(
+        headless=True,
+        enable_stealth=True,
+    )
+    
+    run_config = CrawlerRunConfig(
+        magic=True,
+        cache_mode=CacheMode.BYPASS,
+    )
+
+    async with AsyncWebCrawler(config=browser_config) as crawler:
+        result = await crawler.arun(url=url, config=run_config)
 
     html = (
         getattr(result, "html", None)
