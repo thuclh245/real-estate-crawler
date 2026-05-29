@@ -42,6 +42,29 @@ class SilverRecord(TypedDict, total=False):
     parse_status: str | None
     parse_error_message: str | None
     processed_at: str | None
+    # --- NLP / Regex extracted features (from extract_features()) ---
+    has_legal_info: bool | None
+    legal_status_raw: str | None
+    has_red_pink_book: bool | None
+    floor_count: int | None
+    seller_type: str | None
+    furniture_level: str | None
+    frontage_width: float | None
+    bathroom_count: int | None
+    project_name: str | None
+    bedroom_count: int | None
+    is_business_suitable: bool | None
+    has_urban_area_flag: bool | None
+    has_security_flag: bool | None
+    has_educated_community_flag: bool | None
+    has_high_intellect_flag: bool | None
+    has_residential_area_flag: bool | None
+    has_subdivision_flag: bool | None
+    direction: str | None
+    is_price_negotiable: bool | None
+    has_car_access: bool | None
+    car_access_type: str | None
+    building_name: str | None
 
 
 class RunSummary(TypedDict, total=False):

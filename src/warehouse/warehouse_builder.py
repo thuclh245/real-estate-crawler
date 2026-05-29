@@ -446,6 +446,12 @@ def build_dim_listing(snapshot_df: pd.DataFrame) -> pd.DataFrame:
                 if pd.notna(row.get("snapshot_date") or row.get("crawl_date"))
                 else None,
                 "listing_identity_method": method,
+                # --- NLP enriched descriptive attributes ---
+                "project_name": row.get("project_name") or None,
+                "building_name": row.get("building_name") or None,
+                "direction": row.get("direction") or None,
+                "frontage_width_m": row.get("frontage_width") or row.get("frontage_width_m") or None,
+                "seller_type": row.get("seller_type") or None,
             }
         )
 
@@ -461,6 +467,11 @@ def build_dim_listing(snapshot_df: pd.DataFrame) -> pd.DataFrame:
                 "first_seen_date_key",
                 "last_seen_date_key",
                 "listing_identity_method",
+                "project_name",
+                "building_name",
+                "direction",
+                "frontage_width_m",
+                "seller_type",
             ]
         )
 
@@ -476,6 +487,11 @@ def build_dim_listing(snapshot_df: pd.DataFrame) -> pd.DataFrame:
             first_seen_date_key=("first_seen_date_key", "min"),
             last_seen_date_key=("last_seen_date_key", "max"),
             listing_identity_method=("listing_identity_method", "first"),
+            project_name=("project_name", "first"),
+            building_name=("building_name", "first"),
+            direction=("direction", "first"),
+            frontage_width_m=("frontage_width_m", "first"),
+            seller_type=("seller_type", "first"),
         )
         .sort_values("listing_key")
     )
@@ -572,6 +588,35 @@ def build_fact_listing_snapshot(snapshot_df: pd.DataFrame) -> pd.DataFrame:
                 "is_price_negotiable": bool(row.get("is_price_negotiable", False))
                 if pd.notna(row.get("is_price_negotiable"))
                 else False,
+                # --- NLP enriched status / flag fields ---
+                "legal_status_raw": row.get("legal_status_raw") or None,
+                "has_red_pink_book": bool(row.get("has_red_pink_book", False))
+                if pd.notna(row.get("has_red_pink_book"))
+                else False,
+                "furniture_level": row.get("furniture_level") or None,
+                "floor_count": row.get("floor_count") or None,
+                "is_business_suitable": bool(row.get("is_business_suitable", False))
+                if pd.notna(row.get("is_business_suitable"))
+                else False,
+                "has_urban_area_flag": bool(row.get("has_urban_area_flag", False))
+                if pd.notna(row.get("has_urban_area_flag"))
+                else False,
+                "has_security_flag": bool(row.get("has_security_flag", False))
+                if pd.notna(row.get("has_security_flag"))
+                else False,
+                "has_educated_community_flag": bool(row.get("has_educated_community_flag", False))
+                if pd.notna(row.get("has_educated_community_flag"))
+                else False,
+                "has_high_intellect_flag": bool(row.get("has_high_intellect_flag", False))
+                if pd.notna(row.get("has_high_intellect_flag"))
+                else False,
+                "has_residential_area_flag": bool(row.get("has_residential_area_flag", False))
+                if pd.notna(row.get("has_residential_area_flag"))
+                else False,
+                "has_subdivision_flag": bool(row.get("has_subdivision_flag", False))
+                if pd.notna(row.get("has_subdivision_flag"))
+                else False,
+                "car_access_type": row.get("car_access_type") or None,
             }
         )
 

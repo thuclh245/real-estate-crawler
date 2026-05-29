@@ -79,6 +79,12 @@ REQUIRED_TABLES = {
             "first_seen_date_key",
             "last_seen_date_key",
             "listing_identity_method",
+            # NLP enriched descriptive attributes
+            "project_name",
+            "building_name",
+            "direction",
+            "frontage_width_m",
+            "seller_type",
         ],
     },
     "fact_listing_snapshot": {
@@ -107,6 +113,19 @@ REQUIRED_TABLES = {
             "has_legal_info",
             "has_car_access",
             "is_price_negotiable",
+            # NLP enriched status / flag fields
+            "legal_status_raw",
+            "has_red_pink_book",
+            "furniture_level",
+            "floor_count",
+            "is_business_suitable",
+            "has_urban_area_flag",
+            "has_security_flag",
+            "has_educated_community_flag",
+            "has_high_intellect_flag",
+            "has_residential_area_flag",
+            "has_subdivision_flag",
+            "car_access_type",
         ],
     },
     "fact_data_quality_daily": {
